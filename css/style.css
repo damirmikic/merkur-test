@@ -1,0 +1,247 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+}
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+    color: #6b7280;
+}
+.tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* --- Base Input Styling --- */
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #f9fafb;
+    color: #1f2937;
+}
+.input-group input:disabled, .input-group select:disabled {
+     background-color: #e5e7eb;
+     cursor: not-allowed;
+}
+.input-group input:focus, .input-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+ .input-group input:read-only {
+    background-color: #eef2ff;
+    color: #4338ca;
+    border-color: #c7d2fe;
+    font-weight: 600;
+}
+
+/* --- Player Card --- */
+.player-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    background-color: #ffffff;
+    position: relative;
+    transition: box-shadow 0.2s;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+.player-card h4 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 1rem;
+}
+
+/* --- Autocomplete & Utils --- */
+.input-wrapper { position: relative; }
+.calc-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #e5e7eb;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4b5563;
+    transition: all 0.2s ease;
+}
+.calc-btn:hover { background-color: #d1d5db; color: #1f2937; }
+.remove-preview-row {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 9999px;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.remove-preview-row:hover {
+    background-color: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+.autocomplete-suggestions {
+    position: absolute;
+    border: 1px solid #e5e7eb;
+    background-color: white;
+    z-index: 99;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.autocomplete-suggestions div { padding: 0.75rem; cursor: pointer; }
+.autocomplete-suggestions div:hover { background-color: #f3f4f6; }
+.autocomplete-suggestions .highlight { font-weight: bold; color: #1e293b; }
+
+/* --- Status Indicator --- */
+@keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.pulse-green { animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pulse-red { animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+/* --- Action Buttons --- */
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    transition: all 0.2s ease-in-out;
+    transform: translateY(0);
+}
+.action-btn:hover {
+     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+     transform: translateY(-2px);
+}
+.action-btn:focus {
+    outline: none;
+}
+.action-btn.primary {
+    background-image: linear-gradient(to right, #3b82f6, #2563eb);
+    color: white;
+}
+.action-btn.primary:focus-visible {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+}
+ .action-btn.primary:disabled {
+    background-image: none;
+    background-color: #93c5fd;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.action-btn.secondary {
+    background-color: #4b5563;
+    color: white;
+}
+ .action-btn.secondary:hover {
+    background-color: #374151;
+}
+.action-btn.secondary:focus-visible {
+    box-shadow: 0 0 0 4px rgba(75, 85, 99, 0.4);
+}
+.action-btn.success {
+    background-image: linear-gradient(to right, #22c55e, #16a34a);
+    color: white;
+}
+ .action-btn.success:hover {
+    opacity: 0.9;
+}
+ .action-btn.success:focus-visible {
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.4);
+}
+.editable-odd {
+    border: 1px solid transparent;
+    background-color: transparent;
+    text-align: right;
+    font-weight: bold;
+    color: #2563eb;
+    width: 100%;
+}
+.editable-odd:focus {
+    background-color: #eff6ff;
+    border-color: #93c5fd;
+    outline: none;
+    box-shadow: none;
+}
+
+/* --- Tour Tooltip --- */
+#tour-highlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+#tour-arrow {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    transform: rotate(45deg);
+}
+#tour-tooltip.arrow-top #tour-arrow {
+    bottom: -6px;
+    left: calc(50% - 6px);
+}
+#tour-tooltip.arrow-bottom #tour-arrow {
+    top: -6px;
+    left: calc(50% - 6px);
+}
+#tour-tooltip.arrow-left #tour-arrow {
+    right: -6px;
+    top: calc(50% - 6px);
+}
+#tour-tooltip.arrow-right #tour-arrow {
+    left: -6px;
+    top: calc(50% - 6px);
+}
+#tour-tooltip h3 {
+    cursor: move;
+}
+#tour-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+#tour-close:hover {
+    color: #374151;
+}
