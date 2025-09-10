@@ -175,7 +175,6 @@ const fetchApiEvents = async () => {
         );
 
         const mergedEvents = [...playerPropsEvents];
-        const playerPropsEventIds = new Set(playerPropsEvents.map(e => e.id));
 
         cloudbetEvents.forEach(event => {
             const isBig5League = !!cloudbetToOddsAPIKeyMap[event.competitionKey];
@@ -1447,6 +1446,14 @@ const populateMatchData = (eventId) => {
 
         event.lambdaHome = lambdaHome;
         event.lambdaAway = lambdaAway;
+
+        const bttsMarket = event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections;
+        if(bttsMarket) {
+            const yesOdd = bttsMarket.find(s => s.outcome === 'yes')?.price;
+            if(yesOdd) {
+                $('#special-gg-prob').value = (oddToProb(yesOdd) * 100).toFixed(2);
+            }
+        }
 
         $('#special-goals-lambda').value = goalsLambda ? goalsLambda.toFixed(2) : '2.5';
         $('#special-corners-lambda').value = cornersLambda ? cornersLambda.toFixed(2) : '10.5';
