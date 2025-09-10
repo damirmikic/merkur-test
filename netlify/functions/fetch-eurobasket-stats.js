@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 exports.handler = async (event, context) => {
@@ -34,7 +33,6 @@ exports.handler = async (event, context) => {
             $(row).find('td').each((j, cell) => {
                 const header = headersMap[j];
                 let value = $(cell).text().trim();
-                // Convert numeric strings to numbers, but keep percentages as strings
                 if (!header.includes('%') && !isNaN(value) && value !== '') {
                     value = parseFloat(value);
                 }
