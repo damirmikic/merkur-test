@@ -1,5 +1,5 @@
-import InjuryManager from './injury-module.js';
-import LineupManager from './lineup-module.js';
+import InjuryManager from '../modules/injury-module.js';
+import LineupManager from '../modules/lineup-module.js';
 
 window.injuryManager = new InjuryManager();
 window.lineupManager = new LineupManager();
@@ -952,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const indicator = $('#status-indicator');
         const statusText = $('#status-text');
         try {
-            const response = await fetch('/player_data/merged_player_stats.json'); 
+            const response = await fetch('/data/merged_player_stats.json'); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             allFbrefStats = await response.json();
             indicator.classList.replace('bg-red-500', 'bg-green-500');
@@ -967,50 +967,10 @@ document.addEventListener('DOMContentLoaded', () => {
             indicator.title = "Greška: Nije moguće učitati 'merged_player_stats.json'.";
             statusText.textContent = 'Greška učitavanja baze';
             statusText.className = 'text-red-600';
-            alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'player_data/merged_player_stats.json' postoji.");
+            alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'data/merged_player_stats.json' postoji.");
         }
     };
     
-    const populateCompetitionSelect = () => {
-        const competitions = allApiEvents.reduce((acc, event) => {
-            if (!acc[event.competitionKey]) {
-                acc[event.competitionKey] = { key: event.competitionKey, name: event.competitionName };
-            }
-            return acc;
-        }, {});
-
-        competitionSelect.innerHTML = '<option value="">-- Izaberi Takmičenje --</option>';
-        Object.values(competitions).sort((a,b) => a.name.localeCompare(b.name)).forEach(comp => {
-            const option = document.createElement('option');
-            option.value = comp.key;
-            option.textContent = comp.name;
-            competitionSelect.appendChild(option);
-        });
-    };
-
-    const populateApiPlayerSelect = (players) => {
-        apiPlayerSelect.innerHTML = '<option value="">-- Izaberi igrača --</option>';
-        if (!players || players.length === 0) {
-            apiPlayerAdder.classList.add('hidden');
-            return;
-        }
-
-        players.sort((a, b) => a.name.localeCompare(b.name));
-
-        players.forEach(player => {
-            const option = document.createElement('option');
-            option.value = player.name;
-            let optionText = player.name;
-            if (player.goalscorerOdd) {
-                optionText += ` (${player.goalscorerOdd})`;
-            }
-            option.textContent = optionText;
-            option.dataset.odd = player.goalscorerOdd || '';
-            option.dataset.teamSide = player.teamSide || 'unknown';
-            apiPlayerSelect.appendChild(option);
-        });
-        apiPlayerAdder.classList.remove('hidden');
-    };
     
     const populateEventSelect = (competitionKey) => {
         eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
@@ -1453,4 +1413,3 @@ document.addEventListener('DOMContentLoaded', () => {
         window.lineupManager.initialize();
     };
 });
-
