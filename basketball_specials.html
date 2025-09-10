@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Košarkaških Specijala</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #475569;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background-color: #f9fafb;
+            color: #1f2937;
+        }
+        .input-group input:disabled, .input-group input:read-only {
+             background-color: #e5e7eb;
+             cursor: not-allowed;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease-in-out;
+            transform: translateY(0);
+        }
+        .action-btn:hover {
+             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+             transform: translateY(-2px);
+        }
+        .action-btn.primary {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb);
+            color: white;
+        }
+        .action-btn.secondary {
+            background-color: #4b5563;
+            color: white;
+        }
+        .action-btn.success {
+            background-image: linear-gradient(to right, #22c55e, #16a34a);
+            color: white;
+        }
+        .remove-preview-row {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            border-radius: 9999px;
+            width: 1.5rem;
+            height: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .remove-preview-row:hover {
+            background-color: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+        .stat-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .stat-value {
+            font-size: 1.125rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+            <header class="p-6 sm:p-8 flex items-center justify-between border-b border-slate-200">
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-100 text-blue-600 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-basketball"><circle cx="12" cy="12" r="10"/><path d="M4.2 14.2c.627.442 1.346.734 2.14.868"/><path d="M17.66 2.34c.2.63.34 1.3.34 2.01"/><path d="M21.66 14.25c-.134.8-.426 1.519-.868 2.146"/><path d="M1.95 12c0-.71.14-1.38.34-2.01"/><path d="M9.8 2.8c-.442.627-.734 1.346-.868 2.14"/><path d="M14.25 21.66c-.8.134-1.519.426-2.146.868"/><path d="M2.34 6.34a10.02 10.02 0 0 0-1.99 4.21"/><path d="M12 22.05c.71 0 1.38-.14 2.01-.34"/><path d="M3.4 17.66c-.63-.2-1.3-.34-2.01-.34"/><path d="M2.8 9.8a10.02 10.02 0 0 0 4.21-1.99"/><path d="M22.05 12c0 .71-.14 1.38-.34 2.01"/><path d="M17.66 20.6a10.02 10.02 0 0 0 1.99-4.21"/></svg>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Generator Košarkaških Specijala</h1>
+                </div>
+                 <div class="flex items-center gap-4">
+                    <a href="/index.html" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg shadow-sm transition-all text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dribbble"><circle cx="12" cy="12" r="10"/><path d="M19.13 5.09C15.22 9.14 10 10.44 2.25 10.94"/><path d="M21.75 12.84c-5.76-1.4-11.64-2.2-17.62-2.96"/><path d="M16.25 18.02c-3.55-3.84-6.7-8.44-7.75-12.82"/></svg>
+                        Idi na Fudbal
+                    </a>
+                </div>
+            </header>
+            
+            <div class="p-6 sm:p-8">
+                <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">1. Izbor Meča</h3>
+                    <div class="input-group">
+                        <label for="bball-match-select">Izaberi Meč</label>
+                        <select id="bball-match-select">
+                            <option>Učitavanje mečeva...</option>
+                        </select>
+                    </div>
+                    <div id="team-stats-container" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                    </div>
+                    <div id="calculation-display" class="mt-4 grid grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label class="text-sm font-medium text-slate-500">Poeni po min. (Domaćin):</label>
+                            <p id="lambda-home-display" class="font-bold text-lg text-blue-600">N/A</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-500">Poeni po min. (Gost):</label>
+                            <p id="lambda-away-display" class="font-bold text-lg text-blue-600">N/A</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-slate-800">Podešavanje Udela Poena</h3>
+                        <div class="flex gap-2">
+                           <button id="apply-suggested-btn" class="action-btn primary !py-1 !px-3 text-xs hidden">Primeni Sugerisane Vrednosti</button>
+                           <button id="reset-sliders-btn" class="action-btn secondary !py-1 !px-3 text-xs">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                               Resetuj Vrednosti
+                           </button>
+                        </div>
+                    </div>
+                    <div id="shot-distribution-sliders" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="input-group">
+                            <label for="ft-slider" class="flex justify-between">Slobodna Bacanja <span id="ft-value" class="font-bold"></span></label>
+                            <input type="range" id="ft-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="input-group">
+                            <label for="p2-slider" class="flex justify-between">2 Poena <span id="p2-value" class="font-bold"></span></label>
+                            <input type="range" id="p2-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="input-group">
+                            <label for="p3-slider" class="flex justify-between">3 Poena <span id="p3-value" class="font-bold"></span></label>
+                            <input type="range" id="p3-slider" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">2. Dodavanje Igara</h3>
+                    <div id="betting-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div class="input-group md:col-span-2">
+                            <label for="bet-market-select">Vrsta igre</label>
+                            <select id="bet-market-select"></select>
+                        </div>
+
+                        <div id="player-selection-group" class="input-group md:col-span-2 hidden">
+                            <label for="player-select">Izaberi Igrača</label>
+                            <select id="player-select"></select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="bet-handicap">Granica (GR)</label>
+                            <input type="number" id="bet-handicap" step="0.5" placeholder="npr. 67.5">
+                        </div>
+                         <div class="input-group">
+                            <label for="bet-odd-1">Kvota (1)</label>
+                            <input type="number" id="bet-odd-1" step="0.01" placeholder="npr. 1.85">
+                        </div>
+                        <div class="input-group">
+                            <label for="bet-odd-under">Kvota Manje (U)</label>
+                            <input type="number" id="bet-odd-under" step="0.01" placeholder="npr. 1.85">
+                        </div>
+                        <div class="input-group">
+                            <label for="bet-odd-over">Kvota Više (O)</label>
+                            <input type="number" id="bet-odd-over" step="0.01" placeholder="npr. 1.85">
+                        </div>
+                        <div class="md:col-span-4 flex items-end gap-4">
+                             <button id="add-bet-btn" class="w-full action-btn secondary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-circle"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                                Dodaj Igru
+                            </button>
+                            <button id="reset-bet-btn" class="w-full action-btn primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-cw"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path></svg>
+                                Poništi Unos
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                 <div id="bball-preview-section" class="hidden">
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">3. Pregled Generisanih Igara</h2>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="min-w-full">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Domacin (Naziv Meča)</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Gost (Vrsta Igre)</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">GR</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">U</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">O</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">1</th>
+                                    <th scope="col" class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Ukloni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bball-preview-table-body" class="bg-white"></tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-center mt-8">
+                        <button id="bball-download-csv-btn" class="w-full md:w-auto action-btn success">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
+                            Preuzmi CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const bballMatchSelect = document.getElementById('bball-match-select');
+            const betMarketSelect = document.getElementById('bet-market-select');
+            const playerSelectionGroup = document.getElementById('player-selection-group');
+            const playerSelect = document.getElementById('player-select');
+            const betHandicapInput = document.getElementById('bet-handicap');
+            const betOdd1Input = document.getElementById('bet-odd-1');
+            const betOddUnderInput = document.getElementById('bet-odd-under');
+            const betOddOverInput = document.getElementById('bet-odd-over');
+            const addBetBtn = document.getElementById('add-bet-btn');
+            const resetBetBtn = document.getElementById('reset-bet-btn');
+            const bballDownloadCsvBtn = document.getElementById('bball-download-csv-btn');
+            const bballPreviewSection = document.getElementById('bball-preview-section');
+            const bballPreviewTableBody = document.getElementById('bball-preview-table-body');
+            const calculationDisplay = document.getElementById('calculation-display');
+            const lambdaHomeDisplay = document.getElementById('lambda-home-display');
+            const lambdaAwayDisplay = document.getElementById('lambda-away-display');
+            const teamStatsContainer = document.getElementById('team-stats-container');
+            const applySuggestedBtn = document.getElementById('apply-suggested-btn');
+
+
+            // Sliders for point distribution
+            const ftSlider = document.getElementById('ft-slider');
+            const p2Slider = document.getElementById('p2-slider');
+            const p3Slider = document.getElementById('p3-slider');
+            const ftValue = document.getElementById('ft-value');
+            const p2Value = document.getElementById('p2-value');
+            const p3Value = document.getElementById('p3-value');
+            const allSliders = [ftSlider, p2Slider, p3Slider];
+            const resetSlidersBtn = document.getElementById('reset-sliders-btn');
+
+
+            let competitionData = null;
+            let generatedBets = [];
+            let eurobasketStats = [];
+            let tournamentAverageDistribution = { ft: 17, p2: 49, p3: 34 };
+            let suggestedDistribution = null;
+
+            const teamNameMapping = {
+                "BEL": "Belgium", "BIH": "Bosnia and Herzegovina", "CYP": "Cyprus", "CZE": "Czech Republic", "ENG": "England",
+                "ESP": "Spain", "EST": "Estonia", "FIN": "Finland", "FRA": "France", "GEO": "Georgia", "GER": "Germany", "GRE": "Greece",
+                "ISL": "Iceland", "ISR": "Israel", "ITA": "Italy", "LAT": "Latvia", "LTU": "Lithuania", "MNT": "Montenegro",
+                "POL": "Poland", "POR": "Portugal", "SLO": "Slovenia", "SRB": "Serbia", "SWE": "Sweden", "TUR": "Turkiye"
+            };
+            
+            const bettingMarkets = [
+                'Ukupno skokova', 'Ukupno asistencija', 
+                'Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja',
+                'Ukupno izgubljenih lopti', '1. min oba tima daju trojku',
+                'Igrac postize 20+ poena',
+                '1. minut oba tima daju kos', 
+                '1. min 3+ poena', 
+                '1. min 4+ poena',
+                '1. min 5+ poena',
+                '1. min - tačno 0 poena', '1. min - tačno 2 poena', '1. min - tačno 3 poena', '1. min - tačno 4 poena',
+                '2m 8+ poena', '2m 10+ poena'
+            ];
+
+            function populateBettingMarkets() {
+                betMarketSelect.innerHTML = '';
+                bettingMarkets.forEach(market => {
+                    const option = document.createElement('option');
+                    option.value = market;
+                    option.textContent = market;
+                    betMarketSelect.appendChild(option);
+                });
+            }
+
+            async function fetchBasketballApiEvents() {
+                try {
+                    const response = await fetch('/api/basketball-events');
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API greška: ${errorData.error || response.statusText}`);
+                    }
+                    
+                    competitionData = await response.json();
+                    
+                    if (competitionData.events && competitionData.events.length > 0) {
+                        bballMatchSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
+                        competitionData.events.forEach((event, index) => {
+                            if (event.home && event.home.name) {
+                                const option = document.createElement('option');
+                                option.value = index;
+                                option.textContent = event.name;
+                                bballMatchSelect.appendChild(option);
+                            }
+                        });
+                    } else {
+                        bballMatchSelect.innerHTML = '<option value="">Nema dostupnih mečeva</option>';
+                    }
+                } catch (error) {
+                    console.error('Greška pri učitavanju košarkaških mečeva:', error);
+                    bballMatchSelect.innerHTML = `<option value="">Greška: ${error.message}</option>`;
+                }
+            }
+
+            async function fetchEurobasketStats() {
+                try {
+                    const response = await fetch('/api/eurobasket-stats');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    eurobasketStats = await response.json();
+                } catch (error) {
+                    console.error('Failed to fetch Eurobasket stats:', error);
+                }
+            }
+            
+            function populatePlayerDropdown(matchIndex) {
+                playerSelect.innerHTML = '<option value="">-- Izaberite igrača --</option>';
+                if (matchIndex === "" || matchIndex === null) {
+                    return;
+                }
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const players = selectedEvent.players;
+                const playerPointsMarket = selectedEvent.markets?.['basketball.player_points']?.submarkets?.['period=ot&period=ft']?.selections;
+
+                if (players) {
+                    Object.values(players).forEach(player => {
+                        let optionText = player.name;
+                        
+                        if (playerPointsMarket) {
+                            const playerMarket = playerPointsMarket.find(p => p.params.includes(player.name.toLowerCase().replace(/ /g, '-')));
+                            if (playerMarket) {
+                                const totalMatch = playerMarket.params.match(/total=([\d.]+)/);
+                                if (totalMatch && totalMatch[1]) {
+                                    optionText += ` (${totalMatch[1]})`;
+                                }
+                            }
+                        }
+                        
+                        const option = document.createElement('option');
+                        option.value = player.name;
+                        option.textContent = optionText;
+                        playerSelect.appendChild(option);
+                    });
+                }
+            }
+
+            function addBetToGenerator() {
+                const matchIndex = bballMatchSelect.value;
+                if (matchIndex === "" || matchIndex === null) {
+                    alert('Molimo Vas izaberite meč.');
+                    return;
+                }
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const marketType = betMarketSelect.value;
+                let guestValue = marketType;
+
+                if (marketType === 'Igrac postize 20+ poena') {
+                    const selectedPlayer = playerSelect.value;
+                    if (!selectedPlayer) {
+                        alert('Molimo Vas izaberite igrača.');
+                        return;
+                    }
+                    guestValue = `${selectedPlayer} - ${marketType}`;
+                }
+
+                const bet = {
+                    matchName: competitionData.name,
+                    leagueName: marketType,
+                    domacin: selectedEvent.name,
+                    gost: guestValue,
+                    cutoffTime: selectedEvent.cutoffTime,
+                    gr: betHandicapInput.value || '',
+                    u: betOddUnderInput.value || '',
+                    o: betOddOverInput.value || '',
+                    '1': betOdd1Input.value || ''
+                };
+
+                generatedBets.push(bet);
+                renderPreviewTable();
+                resetBetForm();
+            }
+            
+            function createStatCard(teamName, stats) {
+                if (!stats) {
+                    return `<div class="stat-card"><h3>${teamName}</h3><p>Statistika nije dostupna.</p></div>`;
+                }
+
+                return `
+                    <div class="stat-card">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">${teamName}</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item"><div class="stat-label">PTS</div><div class="stat-value">${stats.PTS}</div></div>
+                            <div class="stat-item"><div class="stat-label">2PM</div><div class="stat-value">${stats['2PM']}</div></div>
+                            <div class="stat-item"><div class="stat-label">3PM</div><div class="stat-value">${stats['3PM']}</div></div>
+                            <div class="stat-item"><div class="stat-label">FTM</div><div class="stat-value">${stats['FTM']}</div></div>
+                            <div class="stat-item"><div class="stat-label">RT</div><div class="stat-value">${stats.RT}</div></div>
+                            <div class="stat-item"><div class="stat-label">AS</div><div class="stat-value">${stats.AS}</div></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function displayTeamStats(homeTeamName, awayTeamName) {
+                 const homeStats = eurobasketStats.find(s => homeTeamName.includes(teamNameMapping[s.Team]));
+                 const awayStats = eurobasketStats.find(s => awayTeamName.includes(teamNameMapping[s.Team]));
+
+                 teamStatsContainer.innerHTML = createStatCard(homeTeamName, homeStats) + createStatCard(awayTeamName, awayStats);
+                 teamStatsContainer.classList.remove('hidden');
+            }
+            
+            function updateShotDistributionSliders(p2Percent, p3Percent, ftPercent) {
+                p2Slider.value = p2Percent;
+                p3Slider.value = p3Percent;
+                ftSlider.value = ftPercent;
+
+                p2Value.textContent = `${p2Percent}%`;
+                p3Value.textContent = `${p3Percent}%`;
+                ftValue.textContent = `${ftPercent}%`;
+            }
+            
+            function calculateAndShowSuggestedDistribution(homeTeamName, awayTeamName) {
+                const homeStats = eurobasketStats.find(s => homeTeamName.includes(teamNameMapping[s.Team]));
+                const awayStats = eurobasketStats.find(s => awayTeamName.includes(teamNameMapping[s.Team]));
+
+                if (homeStats && awayStats) {
+                    const avg2PM = (homeStats['2PM'] + awayStats['2PM']) / 2;
+                    const avg3PM = (homeStats['3PM'] + awayStats['3PM']) / 2;
+                    const avgFTM = (homeStats['FTM'] + awayStats['FTM']) / 2;
+                    
+                    const tournamentAvg2PM = tournamentAverageDistribution.p2 / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3) / 2;
+                    const tournamentAvg3PM = tournamentAverageDistribution.p3 / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3) / 3;
+                    const tournamentAvgFTM = tournamentAverageDistribution.ft / 100 * (tournamentAverageDistribution.ft + tournamentAverageDistribution.p2*2 + tournamentAverageDistribution.p3*3);
+
+                    const final2PM = (avg2PM + tournamentAvg2PM) / 2;
+                    const final3PM = (avg3PM + tournamentAvg3PM) / 2;
+                    const finalFTM = (avgFTM + tournamentAvgFTM) / 2;
+
+                    const totalPoints = (final2PM * 2) + (final3PM * 3) + finalFTM;
+
+                    if (totalPoints > 0) {
+                        const p2 = Math.round(((final2PM * 2) / totalPoints) * 100);
+                        const p3 = Math.round(((final3PM * 3) / totalPoints) * 100);
+                        const ft = 100 - p2 - p3;
+                        
+                        suggestedDistribution = { p2, p3, ft };
+                        applySuggestedBtn.classList.remove('hidden');
+                        return;
+                    }
+                }
+                suggestedDistribution = null;
+                applySuggestedBtn.classList.add('hidden');
+            }
+
+
+            function renderPreviewTable() {
+                bballPreviewTableBody.innerHTML = '';
+                if (generatedBets.length > 0) {
+                    bballPreviewSection.classList.remove('hidden');
+                } else {
+                    bballPreviewSection.classList.add('hidden');
+                }
+
+                generatedBets.forEach((bet, index) => {
+                    const row = bballPreviewTableBody.insertRow();
+                    row.className = 'bg-white even:bg-slate-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">${bet.domacin}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${bet.gost}</td>
+                        <td class="px-2 py-1"><input type="number" step="0.5" class="w-full text-center bg-transparent rounded-md p-1 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="${bet.gr}" data-index="${index}" data-field="gr"></td>
+                        <td class="px-2 py-1"><input type="number" step="0.01" class="w-full text-center bg-transparent rounded-md p-1 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="${bet.u}" data-index="${index}" data-field="u"></td>
+                        <td class="px-2 py-1"><input type="number" step="0.01" class="w-full text-center bg-transparent rounded-md p-1 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="${bet.o}" data-index="${index}" data-field="o"></td>
+                        <td class="px-2 py-1"><input type="number" step="0.01" class="w-full text-center bg-transparent rounded-md p-1 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="${bet['1']}" data-index="${index}" data-field="1"></td>
+                        <td class="px-4 py-4 text-center">
+                            <button type="button" class="remove-preview-row" data-index="${index}" title="Ukloni ovu igru">&times;</button>
+                        </td>
+                    `;
+                });
+            }
+            
+            bballPreviewTableBody.addEventListener('input', function(e) {
+                if (e.target.tagName === 'INPUT') {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    const field = e.target.dataset.field;
+                    const value = e.target.value;
+                    
+                    if (generatedBets[index]) {
+                        generatedBets[index][field] = value;
+                    }
+                }
+            });
+
+            bballPreviewTableBody.addEventListener('click', function(e) {
+                if(e.target.classList.contains('remove-preview-row')) {
+                    const indexToRemove = parseInt(e.target.dataset.index, 10);
+                    generatedBets.splice(indexToRemove, 1);
+                    renderPreviewTable();
+                }
+            });
+
+            function downloadBballCsv() {
+                if (generatedBets.length === 0) {
+                    alert('Nema dodatih igara za preuzimanje.');
+                    return;
+                }
+                
+                const header = "Datum,Vreme,Sifra,Domacin,Gost,1,X,2,GR,U,O,Yes,No\n";
+                let csvContent = header;
+
+                csvContent += `MATCH_NAME:${generatedBets[0].matchName},,,,,,,,,,,,\n`;
+
+                const groupedBets = generatedBets.reduce((acc, bet) => {
+                    if (!acc[bet.leagueName]) {
+                        acc[bet.leagueName] = [];
+                    }
+                    acc[bet.leagueName].push(bet);
+                    return acc;
+                }, {});
+
+                for (const leagueName in groupedBets) {
+                    csvContent += `LEAGUE_NAME:${leagueName},,,,,,,,,,,,\n`;
+                    
+                    groupedBets[leagueName].forEach(bet => {
+                        const kickoff = new Date(bet.cutoffTime);
+                        const date = `${kickoff.getDate().toString().padStart(2, '0')}.${(kickoff.getMonth() + 1).toString().padStart(2, '0')}.${kickoff.getFullYear()}`;
+                        const time = `${kickoff.getHours().toString().padStart(2, '0')}:${kickoff.getMinutes().toString().padStart(2, '0')}`;
+
+                        const rowData = [
+                            date, time, '',
+                            `"${bet.domacin.replace(/"/g, '""')}"`,
+                            `"${bet.gost.replace(/"/g, '""')}"`,
+                            bet['1'], '', '', bet.gr, bet.u, bet.o, '', ''
+                        ];
+                        csvContent += rowData.join(',') + '\n';
+                    });
+                }
+                
+                const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const fileName = `${generatedBets[0].matchName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_specials.csv`;
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // --- Math & Calculation Helpers ---
+            const factCache = [1];
+            function factorial(n) {
+                if (n < 0) return NaN;
+                if (n > 170) return Infinity;
+                if (factCache[n] !== undefined) return factCache[n];
+                let val = factCache[factCache.length - 1];
+                for (let i = factCache.length; i <= n; i++) {
+                    val *= i;
+                    factCache[i] = val;
+                }
+                return val;
+            }
+
+            function poissonPMF(mu, k) {
+                return (Math.pow(mu, k) * Math.exp(-mu)) / factorial(k);
+            }
+            
+            function poissonCDF(mu, k) {
+                let sum = 0;
+                for (let i = 0; i <= k; i++) {
+                    sum += poissonPMF(mu, i);
+                }
+                return sum;
+            }
+
+            function probOver(mu, k) {
+                return 1 - poissonCDF(mu, k);
+            }
+
+            function applyMargin(odd, margin = 8) {
+                if (!odd || odd <= 1) return odd;
+                const probability = 1 / odd;
+                const marginFactor = 1 + (margin / 100);
+                const newProbability = probability * marginFactor;
+                return 1 / newProbability;
+            }
+
+            function findMainLineData(selections) {
+                if (!selections || selections.length === 0) return { total: 0, overOdd: 0, underOdd: 0 };
+                let minDiff = Infinity;
+                let mainLine = { total: 0, overOdd: 0, underOdd: 0 };
+                
+                const totals = {};
+                selections.forEach(sel => {
+                    const totalMatch = sel.params.match(/total=([\d.]+)/);
+                    if (totalMatch) {
+                        const total = totalMatch[1];
+                        if (!totals[total]) totals[total] = {};
+                        totals[total][sel.outcome] = sel.price;
+                    }
+                });
+
+                for (const total in totals) {
+                    if (totals[total].over && totals[total].under) {
+                        const diff = Math.abs(totals[total].over - totals[total].under);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            mainLine = {
+                                total: parseFloat(total),
+                                overOdd: totals[total].over,
+                                underOdd: totals[total].under
+                            };
+                        }
+                    }
+                }
+                return mainLine;
+            }
+
+            function calculateAndDisplayOdds(marketType) {
+                const matchIndex = bballMatchSelect.value;
+                betOdd1Input.value = '';
+                if (matchIndex === "" || matchIndex === null) {
+                    calculationDisplay.classList.add('hidden');
+                    return;
+                }
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const market1H = selectedEvent.markets?.['basketball.1st_half_team_total'];
+                const marketTotals = selectedEvent.markets?.['basketball.totals'];
+
+                if (!market1H || !marketTotals) {
+                    alert('Podaci za izračunavanje (1st half team total ili totals) nisu dostupni za ovaj meč.');
+                    return;
+                }
+
+                const homeSelections1H = market1H.submarkets['period=1h&period=q1&period=q2&team=home']?.selections;
+                const awaySelections1H = market1H.submarkets['period=1h&period=q1&period=q2&team=away']?.selections;
+                
+                const homeTotal1H = findMainLineData(homeSelections1H).total;
+                const awayTotal1H = findMainLineData(awaySelections1H).total;
+
+                if (homeTotal1H === 0 || awayTotal1H === 0) {
+                    lambdaHomeDisplay.textContent = 'N/A';
+                    lambdaAwayDisplay.textContent = 'N/A';
+                    calculationDisplay.classList.remove('hidden');
+                    return;
+                }
+
+                const lambda_home_1min = (homeTotal1H / 20) * 0.95;
+                const lambda_away_1min = (awayTotal1H / 20) * 0.95;
+                const lambda_home_2min = (homeTotal1H / 20);
+                const lambda_away_2min = (awayTotal1H / 20);
+                
+                lambdaHomeDisplay.textContent = lambda_home_1min.toFixed(4);
+                lambdaAwayDisplay.textContent = lambda_away_1min.toFixed(4);
+                calculationDisplay.classList.remove('hidden');
+
+                const mu_1min = lambda_home_1min + lambda_away_1min;
+                const mu_2min_total = lambda_home_1min + lambda_away_1min + lambda_home_2min + lambda_away_2min;
+                
+                let probability = 0;
+                let rawOdd = 0;
+                let margin = 10;
+
+                switch(marketType) {
+                    case '1. minut oba tima daju kos':
+                        const prob_home_2_plus = 1 - poissonPMF(lambda_home_1min, 0) - poissonPMF(lambda_home_1min, 1);
+                        const prob_away_2_plus = 1 - poissonPMF(lambda_away_1min, 0) - poissonPMF(lambda_away_1min, 1);
+                        probability = prob_home_2_plus * prob_away_2_plus;
+                        rawOdd = 1 / probability;
+                        betOdd1Input.value = (rawOdd * 0.80).toFixed(2);
+                        return; 
+                    case '1. min oba tima daju trojku':
+                        const mainLineTotal = findMainLineData(marketTotals?.submarkets?.['period=ot&period=ft']?.selections).total;
+                        if (mainLineTotal > 0) {
+                            const total3P = (mainLineTotal * 0.34) / 3;
+                            const home3P_game = total3P * (homeTotal1H / (homeTotal1H + awayTotal1H));
+                            const away3P_game = total3P * (awayTotal1H / (homeTotal1H + awayTotal1H));
+                            const lambda_home_3p_min = home3P_game / 40;
+                            const lambda_away_3p_min = away3P_game / 40;
+                            const prob_home_3p = 1 - Math.exp(-lambda_home_3p_min);
+                            const prob_away_3p = 1 - Math.exp(-lambda_away_3p_min);
+                            probability = prob_home_3p * prob_away_3p;
+                        }
+                        break;
+                    case '1. min 3+ poena': probability = probOver(mu_1min, 2); break;
+                    case '1. min 4+ poena': probability = probOver(mu_1min, 3); break;
+                    case '1. min 5+ poena': probability = probOver(mu_1min, 4); break;
+                    case '1. min - tačno 0 poena': probability = poissonPMF(mu_1min, 0); break;
+                    case '1. min - tačno 2 poena': probability = poissonPMF(mu_1min, 2); break;
+                    case '1. min - tačno 3 poena': probability = poissonPMF(mu_1min, 3); break;
+                    case '1. min - tačno 4 poena': probability = poissonPMF(mu_1min, 4); break;
+                    case '2m 8+ poena': probability = probOver(mu_2min_total, 7); break;
+                    case '2m 10+ poena': probability = probOver(mu_2min_total, 9); break;
+                }
+
+                if (probability > 0) {
+                    rawOdd = 1 / probability;
+                    const finalOdd = applyMargin(rawOdd, margin);
+                    betOdd1Input.value = finalOdd.toFixed(2);
+                }
+            }
+
+            function calculateAndSetHandicap(marketType) {
+                const matchIndex = bballMatchSelect.value;
+                betHandicapInput.value = '';
+                betOddOverInput.value = '';
+                betOddUnderInput.value = '';
+                if (matchIndex === "" || matchIndex === null) return;
+
+                const selectedEvent = competitionData.events[matchIndex];
+                const totalsMarket = selectedEvent.markets?.['basketball.totals']?.submarkets?.['period=ot&period=ft']?.selections;
+                const mainLineData = findMainLineData(totalsMarket);
+
+                if (mainLineData.total === 0) {
+                    alert('Glavna granica za ukupan broj poena nije dostupna za ovaj meč.');
+                    return;
+                }
+
+                const p2Percent = parseInt(p2Slider.value, 10) / 100;
+                const p3Percent = parseInt(p3Slider.value, 10) / 100;
+                const ftPercent = parseInt(ftSlider.value, 10) / 100;
+
+                let lambda = 0;
+                switch(marketType) {
+                    case 'Ukupno postignutih 2P':
+                        lambda = (mainLineData.total * p2Percent) / 2;
+                        break;
+                    case 'Ukupno postignutih 3P':
+                        lambda = (mainLineData.total * p3Percent) / 3;
+                        break;
+                    case 'Ukupno postignutih sl. bacanja':
+                        lambda = (mainLineData.total * ftPercent) / 1;
+                        break;
+                }
+                
+                const calculatedHandicap = Math.floor(lambda) + 0.5;
+                betHandicapInput.value = calculatedHandicap.toFixed(1);
+
+                const prob_over = probOver(lambda, Math.floor(lambda));
+                const prob_under = 1 - prob_over;
+
+                const raw_odd_over = 1 / prob_over;
+                const raw_odd_under = 1 / prob_under;
+
+                betOddOverInput.value = applyMargin(raw_odd_over).toFixed(2);
+                betOddUnderInput.value = applyMargin(raw_odd_under).toFixed(2);
+            }
+            
+            function handleSliderUpdate(changedSlider) {
+                const values = {
+                    ft: parseInt(ftSlider.value, 10),
+                    p2: parseInt(p2Slider.value, 10),
+                    p3: parseInt(p3Slider.value, 10)
+                };
+
+                const sliders = {
+                    ft: ftSlider,
+                    p2: p2Slider,
+                    p3: p3Slider
+                };
+
+                let changedKey = null;
+                if (changedSlider === ftSlider) changedKey = 'ft';
+                if (changedSlider === p2Slider) changedKey = 'p2';
+                if (changedSlider === p3Slider) changedKey = 'p3';
+
+                const remainder = 100 - values[changedKey];
+                const otherKeys = Object.keys(sliders).filter(k => k !== changedKey);
+                
+                const otherSlider1 = sliders[otherKeys[0]];
+                const otherSlider2 = sliders[otherKeys[1]];
+                
+                let oldVal1 = values[otherKeys[0]];
+                let oldVal2 = values[otherKeys[1]];
+                
+                const otherValuesSum = oldVal1 + oldVal2;
+                
+                let newVal1, newVal2;
+
+                if (otherValuesSum === 0) {
+                    newVal1 = remainder / 2;
+                    newVal2 = remainder / 2;
+                } else {
+                    const ratio1 = oldVal1 / otherValuesSum;
+                    newVal1 = remainder * ratio1;
+                    newVal2 = remainder - newVal1;
+                }
+
+                otherSlider1.value = Math.round(newVal1);
+                otherSlider2.value = Math.round(newVal2);
+                
+                let finalSum = Math.round(newVal1) + Math.round(newVal2) + values[changedKey];
+                if (finalSum !== 100) {
+                    let diff = 100 - finalSum;
+                    otherSlider1.value = parseInt(otherSlider1.value) + diff;
+                }
+
+                ftValue.textContent = `${ftSlider.value}%`;
+                p2Value.textContent = `${p2Slider.value}%`;
+                p3Value.textContent = `${p3Slider.value}%`;
+
+                const currentMarket = betMarketSelect.value;
+                const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
+                if (autoCalcHandicapMarkets.includes(currentMarket)) {
+                    calculateAndSetHandicap(currentMarket);
+                }
+            }
+
+             function resetSlidersToDefaults() {
+                updateShotDistributionSliders(tournamentAverageDistribution.p2, tournamentAverageDistribution.p3, tournamentAverageDistribution.ft);
+            }
+
+            allSliders.forEach(slider => {
+                slider.addEventListener('input', () => handleSliderUpdate(slider));
+            });
+            
+            function resetBetForm() {
+                betMarketSelect.selectedIndex = 0;
+                handleMarketSelectionChange();
+            }
+
+            function handleMarketSelectionChange() {
+                 const marketType = betMarketSelect.value;
+                 const autoCalcOddMarkets = [
+                    '1. minut oba tima daju kos', 
+                    '1. min oba tima daju trojku',
+                    '1. min 3+ poena', '1. min 4+ poena', '1. min 5+ poena',
+                    '1. min - tačno 0 poena', '1. min - tačno 2 poena', '1. min - tačno 3 poena', '1. min - tačno 4 poena',
+                    '2m 8+ poena', '2m 10+ poena'
+                 ];
+                 const autoCalcHandicapMarkets = ['Ukupno postignutih 2P', 'Ukupno postignutih 3P', 'Ukupno postignutih sl. bacanja'];
+
+                betOdd1Input.readOnly = false;
+                playerSelectionGroup.classList.add('hidden');
+                calculationDisplay.classList.add('hidden');
+                
+                betHandicapInput.value = '';
+                betOdd1Input.value = '';
+                betOddUnderInput.value = '';
+                betOddOverInput.value = '';
+
+
+                if (marketType === 'Igrac postize 20+ poena') {
+                    playerSelectionGroup.classList.remove('hidden');
+                    populatePlayerDropdown(bballMatchSelect.value);
+                } else if (autoCalcOddMarkets.includes(marketType)) {
+                    calculateAndDisplayOdds(marketType);
+                    betOdd1Input.readOnly = true;
+                } else if (autoCalcHandicapMarkets.includes(marketType)) {
+                    calculateAndSetHandicap(marketType);
+                }
+            }
+            
+            bballMatchSelect.addEventListener('change', (e) => {
+                const selectedEvent = competitionData.events[e.target.value];
+                if (selectedEvent) {
+                    displayTeamStats(selectedEvent.home.name, selectedEvent.away.name);
+                    calculateAndShowSuggestedDistribution(selectedEvent.home.name, selectedEvent.away.name);
+                } else {
+                    teamStatsContainer.classList.add('hidden');
+                    applySuggestedBtn.classList.add('hidden');
+                    resetSlidersToDefaults();
+                }
+                handleMarketSelectionChange();
+            });
+            
+            applySuggestedBtn.addEventListener('click', () => {
+                if (suggestedDistribution) {
+                    updateShotDistributionSliders(suggestedDistribution.p2, suggestedDistribution.p3, suggestedDistribution.ft);
+                }
+            });
+
+            betMarketSelect.addEventListener('change', handleMarketSelectionChange);
+            addBetBtn.addEventListener('click', addBetToGenerator);
+            resetBetBtn.addEventListener('click', resetBetForm);
+            bballDownloadCsvBtn.addEventListener('click', downloadBballCsv);
+            resetSlidersBtn.addEventListener('click', resetSlidersToDefaults);
+
+            async function init() {
+                await fetchEurobasketStats();
+
+                const total2PM = eurobasketStats.reduce((sum, team) => sum + team['2PM'], 0);
+                const total3PM = eurobasketStats.reduce((sum, team) => sum + team['3PM'], 0);
+                const totalFTM = eurobasketStats.reduce((sum, team) => sum + team['FTM'], 0);
+                const totalPoints = (total2PM * 2) + (total3PM * 3) + totalFTM;
+
+                if (totalPoints > 0) {
+                    tournamentAverageDistribution.p2 = Math.round(((total2PM * 2) / totalPoints) * 100);
+                    tournamentAverageDistribution.p3 = Math.round(((total3PM * 3) / totalPoints) * 100);
+                    tournamentAverageDistribution.ft = 100 - tournamentAverageDistribution.p2 - tournamentAverageDistribution.p3;
+                }
+                
+                resetSlidersToDefaults();
+                populateBettingMarkets();
+                fetchBasketballApiEvents();
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>

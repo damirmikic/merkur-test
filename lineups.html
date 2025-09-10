@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pregled Dohvaćenih Postava</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-4xl mx-auto">
+            <header class="p-6 sm:p-8 bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-100 text-blue-600 p-3 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-checks"><path d="M14 9.5l-5 5"/><path d="m9.5 9.5 5 5"/><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M8 12h.01"/><path d="M16 12h.01"/></svg>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Pregled Dohvaćenih Postava</h1>
+                </div>
+                <p id="status" class="mt-4 text-slate-500">Učitavanje postava sa servera...</p>
+            </header>
+
+            <main id="lineups-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const container = document.getElementById('lineups-container');
+            const statusElement = document.getElementById('status');
+
+            try {
+                // Fetch data from the Netlify function
+                const response = await fetch('/api/lineups');
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+
+                const lineups = await response.json();
+
+                if (lineups.length === 0) {
+                    statusElement.textContent = 'Nije pronađena nijedna postava. Skripta je uspešno izvršena, ali nije bilo dostupnih podataka.';
+                    statusElement.className = 'mt-4 text-amber-600';
+                    return;
+                }
+
+                statusElement.textContent = `Pronađeno ${lineups.length} postava.`;
+                statusElement.className = 'mt-4 text-green-600';
+                container.innerHTML = ''; // Clear loading message
+
+                // Create a card for each lineup
+                lineups.forEach(lineup => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-6 rounded-lg border border-slate-200 shadow-sm';
+                    
+                    const players = lineup.lineup.split(';').map(player => player.trim()).join(', ');
+
+                    card.innerHTML = `
+                        <h2 class="text-lg font-bold text-slate-800 mb-2">${lineup.team}</h2>
+                        <p class="text-sm text-slate-600 mb-4">${players}</p>
+                        <a href="${lineup.source_url}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-500 hover:underline">Izvor</a>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error('Failed to fetch lineups:', error);
+                statusElement.textContent = `Greška pri učitavanju: ${error.message}`;
+                statusElement.className = 'mt-4 text-red-600';
+            }
+        });
+    </script>
+
+</body>
+</html>

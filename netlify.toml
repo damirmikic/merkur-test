@@ -1,0 +1,33 @@
+[build]
+  functions = "netlify/functions"
+  publish = "/"
+
+# Ruta za fudbalske mečeve (iz originalne aplikacije)
+[[redirects]]
+  from = "/api/events"
+  to = "/.netlify/functions/fetch-events"
+  status = 200
+
+# Nova ruta za košarkaške mečeve
+[[redirects]]
+  from = "/api/basketball-events"
+  to = "/.netlify/functions/fetch-basketball-events"
+  status = 200
+
+# Ruta za injury podatke
+[[redirects]]
+  from = "/api/injuries"
+  to = "/.netlify/functions/fetch-injuries"
+  status = 200
+
+# Ruta za postave (lineups)
+[[redirects]]
+  from = "/api/lineups"
+  to = "/.netlify/functions/fetch-lineups"
+  status = 200
+
+# Nova ruta za statistiku sa Eurobasketa
+[[redirects]]
+  from = "/api/eurobasket-stats"
+  to = "/.netlify/functions/fetch-eurobasket-stats"
+  status = 200

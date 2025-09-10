@@ -1,0 +1,28 @@
+{
+  "name": "merkur-specijali",
+  "version": "1.0.0",
+  "description": "Sports betting odds calculator with injury data integration",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Static site - no build needed'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "node-fetch": "^2.6.7",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "keywords": [
+    "sports",
+    "betting",
+    "odds",
+    "injuries",
+    "football"
+  ],
+  "author": "damirmikic",
+  "license": "MIT"
+}
