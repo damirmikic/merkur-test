@@ -175,16 +175,18 @@ const fetchApiEvents = async () => {
         );
 
         const mergedEvents = [...playerPropsEvents];
-        const big5CloudbetKeys = new Set(Object.keys(cloudbetToOddsAPIKeyMap));
+        const big5CloudbetKeys = new Set(Object.values(cloudbetToOddsAPIKeyMap));
 
         cloudbetEvents.forEach(event => {
-            if (big5CloudbetKeys.has(event.competitionKey)) {
-                if (!hasPlayerPropsData) {
-                    mergedEvents.push(event);
-                }
-            } else {
-                mergedEvents.push(event);
+            // If TheOddsAPI has data, we don't need Cloudbet for the big 5 leagues.
+            // If TheOddsAPI is empty, we need Cloudbet for everything.
+            const correspondingOddsAPIKey = cloudbetToOddsAPIKeyMap[event.competitionKey];
+            if (hasPlayerPropsData && correspondingOddsAPIKey) {
+                // Do nothing, we already have this league from TheOddsAPI
+                return;
             }
+            // Add the event if it's not a big 5 league, OR if TheOddsAPI is down (fallback)
+            mergedEvents.push(event);
         });
 
         allApiEvents = mergedEvents;
@@ -659,7 +661,6 @@ const calculatePlayerOdds = () => {
             createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
         }
 
-        // --- NEW: Read from both shots and SoT containers ---
         card.querySelectorAll('.sot-lines-container .shot-line').forEach(line => {
             const oddValue = parseFloat(line.querySelector('.shot-odd-input').value);
             const thresholdEl = line.querySelector('.shots-threshold');
@@ -1205,7 +1206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         playersContainer.appendChild(playerCard);
 
         if (playerDataFromApi && playerDataFromApi.markets) {
-            // Map simple 1:1 markets
             const oddsAPIToInternalMap = {
                 'player_assists': 'asistencija',
                 'player_to_receive_card': 'zuti-karton',
@@ -1219,7 +1219,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Map complex markets like shots and SoT
             const marketToContainerMap = {
                 'player_shots_on_target': '.sot-lines-container',
                 'player_shots': '.shots-lines-container'
@@ -1229,12 +1228,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const marketData = playerDataFromApi.markets[marketKey];
                 const container = playerCard.querySelector(containerSelector);
                 if (marketData && container) {
-                    container.innerHTML = ''; // Clear default/calculated lines
+                    container.innerHTML = ''; 
                     marketData
                         .filter(o => o.name === 'Over')
                         .sort((a,b) => a.point - b.point)
                         .forEach(outcome => {
-                            // The API uses 'point' like 0.5 for 1+, 1.5 for 2+, etc.
                             const threshold = outcome.point + 0.5;
                             container.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
                         });
@@ -1375,6 +1373,7 @@ const populateMatchData = (eventId) => {
     }
     populateApiPlayerSelect(availableApiPlayers);
     
+    // --- Specijal Tab Population ---
     if (event.source === 'Cloudbet') {
         const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
         const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
@@ -1385,4 +1384,14 @@ const populateMatchData = (eventId) => {
         $('#special-cards-lambda').value = cardsLambda ? cardsLambda.toFixed(2) : '4.5';
     }
 };
+
+const tourSteps = [
+    { element: '#fetch-api-btn', title: 'Korak 1: Učitavanje Mečeva', text: 'Kliknite ovde da biste preuzeli najnovije mečeve i kvote sa API-ja.', position: 'bottom' },
+    { element: '#competition-select', title: 'Korak 2: Izbor Takmičenja', text: 'Nakon učitavanja, ovde izaberite željeno takmičenje.', position: 'bottom' },
+    { element: '#event-select', title: 'Korak 3: Izbor Meča', text: 'Zatim, izaberite meč za koji želite da generišete kvote.', position: 'bottom' },
+    { element: '#team-select', title: 'Korak 4: Izbor Tima', text: 'Možete filtrirati igrače po timu kako biste lakše pronašli željenog igrača.', position: 'right' },
+    { element: '#api-player-adder', title: 'Korak 5: Dodavanje Igrača', text: 'Izaberite igrača iz padajućeg menija i kliknite na "+" dugme da ga dodate u listu za obradu.', position: 'bottom' },
+    { element: '#generate-btn', title: 'Korak 6: Generisanje Kvota', text: 'Kada ste dodali sve željene igrače, kliknite ovde da generišete sve kvote.', position: 'top' },
+    { element: '#download-csv-btn', title: 'Korak 7: Preuzimanje CSV Fajla', text: 'Na kraju, preuzmite generisane kvote u CSV formatu klikom na ovo dugme.', position: 'top' },
+];
 
