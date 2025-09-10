@@ -1,4 +1,4 @@
-// No require('node-fetch') needed in modern Netlify environments
+const fetch = require('node-fetch'); // This is required for some Netlify runtimes
 
 exports.handler = async (event, context) => {
     // Securely get API keys from Netlify environment variables
@@ -26,16 +26,13 @@ exports.handler = async (event, context) => {
             try {
                 const response = await fetch(fullUrl);
                 if (response.ok) return response.json();
-                // If a key is invalid or rate-limited, just try the next one
                 if (response.status === 401 || response.status === 429) {
                     console.warn(`Key index ${keyIndex} failed or rate-limited. Trying next.`);
                     continue;
                 }
-                // For other errors, we should stop and report it
                 throw new Error(`API responded with status: ${response.status}`);
             } catch (error) {
                 console.error(`Error with key index ${keyIndex}:`, error.message);
-                // Don't continue if it's a general network error vs a key-specific one
                  if (!(error.message.includes('401') || error.message.includes('429'))) {
                    throw error;
                 }
@@ -47,7 +44,6 @@ exports.handler = async (event, context) => {
     try {
         const allEventsWithProps = {};
         
-        // This is more efficient: fetch all odds (which include event details) for each sport
         const sportPromises = SPORTS.map(async (sport) => {
             const oddsUrl = `${BASE_URL}/${sport}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal&dateFormat=iso`;
             try {
@@ -55,7 +51,7 @@ exports.handler = async (event, context) => {
                 allEventsWithProps[sport] = events;
             } catch (error) {
                  console.error(`Could not fetch odds for ${sport}: ${error.message}`);
-                 allEventsWithProps[sport] = []; // Ensure the key exists even if the fetch fails
+                 allEventsWithProps[sport] = []; 
             }
         });
 
