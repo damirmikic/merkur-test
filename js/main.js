@@ -61,7 +61,7 @@ let availableApiPlayers = [];
 let currentTab = 'players';
 let currentStep = 0;
 
-// --- DATA FETCHING & UI POPULATION (Functions defined before being called) ---
+// --- DATA FETCHING & NORMALIZATION (Functions defined before being called) ---
 
 const sportKeyToNameMapping = {
     'soccer_epl': 'England - Premier League',
@@ -69,6 +69,14 @@ const sportKeyToNameMapping = {
     'soccer_germany_bundesliga': 'Germany - Bundesliga',
     'soccer_italy_serie_a': 'Italy - Serie A',
     'soccer_spain_la_liga': 'Spain - La Liga',
+};
+
+const cloudbetToOddsAPIKeyMap = {
+    'soccer-england-premier-league': 'soccer_epl',
+    'soccer-france-ligue-1': 'soccer_france_ligue_one',
+    'soccer-germany-bundesliga': 'soccer_germany_bundesliga',
+    'soccer-italy-serie-a': 'soccer_italy_serie_a',
+    'soccer-spain-laliga': 'soccer_spain_la_liga'
 };
 
 const populateCompetitionSelect = () => {
@@ -137,19 +145,38 @@ const fetchApiEvents = async () => {
     fetchApiBtn.disabled = true;
     apiStatus.textContent = 'Preuzimanje podataka sa oba API-ja...';
     
-    const cloudbetPromise = fetch('/api/events').then(res => res.ok ? res.json() : {competitions: []});
+    const cloudbetPromise = fetch('/api/events').then(res => res.ok ? res.json() : { competitions: [] });
     const playerPropsPromise = fetch('/api/player-props').then(res => res.ok ? res.json() : {});
 
     try {
         const [cloudbetData, playerPropsData] = await Promise.all([cloudbetPromise, playerPropsPromise]);
         
+        // 1. Process TheOddsAPI data first (primary source for big 5)
+        const playerPropsEvents = normalizePlayerPropsData(playerPropsData);
+        const playerPropsEventIds = new Set(playerPropsEvents.map(e => e.id));
+
+        // 2. Process Cloudbet data (secondary/fallback source)
         const cloudbetEvents = (cloudbetData.competitions || []).flatMap(comp => 
             comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key, source: 'Cloudbet' }))
         );
 
-        const playerPropsEvents = normalizePlayerPropsData(playerPropsData);
+        // 3. Merge the data with fallback logic
+        const mergedEvents = [...playerPropsEvents];
+        const big5CloudbetKeys = new Set(Object.keys(cloudbetToOddsAPIKeyMap));
 
-        allApiEvents = [...cloudbetEvents, ...playerPropsEvents];
+        cloudbetEvents.forEach(event => {
+            // If it's a big 5 league event, only add it if it wasn't already successfully fetched from TheOddsAPI
+            if (big5CloudbetKeys.has(event.competitionKey)) {
+                if (!playerPropsEventIds.has(event.id)) {
+                    mergedEvents.push(event); // Add as fallback
+                }
+            } else {
+                // If it's NOT a big 5 league (e.g., Champions League), add it regardless
+                mergedEvents.push(event);
+            }
+        });
+
+        allApiEvents = mergedEvents;
 
         if (allApiEvents.length === 0) {
              apiStatus.textContent = 'Nije pronađen nijedan meč.';
@@ -201,7 +228,20 @@ const fetchFbrefData = async () => {
     }
 };
 
-// --- MATH HELPERS ---
+// --- MATH & OTHER FUNCTIONS (Keep all other functions from your previous main.js here) ---
+// ... (factorial, poissonPMF, probToOdd, etc.)
+// ... (addPlayer, populateStandardShotLines, calculatePlayerOdds, etc.)
+// ... (updatePreviewTable, downloadCSV, resetForm, etc.)
+// ... (All UI interaction logic and the Tour logic)
+
+// --- EVENT LISTENERS & INITIALIZATION (Keep all of this the same) ---
+// ... (on(manualEntryBtn, 'click', ...), etc.)
+
+// --- PASTE ALL THE REMAINING JS FUNCTIONS FROM THE PREVIOUS `main.js` HERE ---
+// ... from factCache down to the end of the file ...
+// It is crucial to paste the rest of your functions here for the application to work.
+
+// --- The following is a placeholder for ALL your other functions ---
 let factCache = [1];
 const factorial = n => {
     if (n < 0) return NaN;
