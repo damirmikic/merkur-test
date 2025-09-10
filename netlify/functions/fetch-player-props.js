@@ -11,9 +11,8 @@ exports.handler = async (event, context) => {
         'soccer_italy_serie_a', 'soccer_spain_la_liga'
     ];
     
-    // All player prop markets that the application might use
     const MARKETS = [
-        'h2h', // Head-to-head (match odds) is needed for context
+        'h2h',
         'player_goal_scorer_anytime',
         'player_to_receive_card',
         'player_shots_on_target',
@@ -46,7 +45,6 @@ exports.handler = async (event, context) => {
     };
 
     try {
-        // --- STEP 1: Fetch all upcoming events for each sport ---
         const eventPromises = SPORTS.map(sport => 
             fetchWithFallback(`${BASE_URL}/${sport}/events?dateFormat=iso`)
         );
@@ -54,32 +52,34 @@ exports.handler = async (event, context) => {
 
         const allUpcomingEvents = eventResults
             .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
-            .flatMap(res => res.value); // Flatten into a single array of events
+            .flatMap(res => res.value);
 
         if (allUpcomingEvents.length === 0) {
-            console.log("No upcoming events found for any of the specified leagues.");
             return {
                 statusCode: 200,
                 headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-                body: JSON.stringify({}) // Return empty object if no events
+                body: JSON.stringify({})
             };
         }
         
-        console.log(`Found a total of ${allUpcomingEvents.length} upcoming events across all leagues.`);
-
-        // --- STEP 2: Fetch odds for each individual event ---
         const oddsPromises = allUpcomingEvents.map(event => 
             fetchWithFallback(`${BASE_URL}/${event.sport_key}/events/${event.id}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal&dateFormat=iso`)
-                .then(oddsData => ({ ...event, ...oddsData })) // Combine event info with its odds
+                .then(oddsData => {
+                    const bookmakers = oddsData.bookmakers || [];
+                    let chosenBookmaker = bookmakers.find(b => b.key === 'fanduel') || bookmakers.find(b => b.key === 'betrivers') || bookmakers[0];
+                    
+                    const finalEventData = { ...event };
+                    finalEventData.bookmakers = chosenBookmaker ? [chosenBookmaker] : [];
+                    return finalEventData;
+                })
                 .catch(e => {
                     console.warn(`Could not fetch odds for event ${event.id}: ${e.message}`);
-                    return {...event, bookmakers: [] }; // Return event with empty odds on failure
+                    return {...event, bookmakers: [] };
                 })
         );
 
         const fullEventData = await Promise.all(oddsPromises);
 
-        // --- STEP 3: Group the results by sport for the frontend ---
         const finalGroupedData = {};
         fullEventData.forEach(event => {
             const sportKey = event.sport_key;
