@@ -66,9 +66,14 @@ exports.handler = async (event, context) => {
             fetchWithFallback(`${BASE_URL}/${event.sport_key}/events/${event.id}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal&dateFormat=iso`)
                 .then(oddsData => {
                     const bookmakers = oddsData.bookmakers || [];
-                    let chosenBookmaker = bookmakers.find(b => b.key === 'fanduel') || bookmakers.find(b => b.key === 'betrivers') || bookmakers[0];
+                    // Prioritize bookmakers: 1. FanDuel, 2. BetRivers, 3. First available
+                    let chosenBookmaker = 
+                        bookmakers.find(b => b.key === 'fanduel') || 
+                        bookmakers.find(b => b.key === 'betrivers') || 
+                        bookmakers[0];
                     
                     const finalEventData = { ...event };
+                    // Return only the single chosen bookmaker
                     finalEventData.bookmakers = chosenBookmaker ? [chosenBookmaker] : [];
                     return finalEventData;
                 })
