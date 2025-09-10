@@ -20,14 +20,9 @@ exports.handler = async (event, context) => {
   
   // List of specific league keys to fetch
   const leagueKeys = [
-    'soccer-france-ligue-1',
-    'soccer-england-premier-league',
     'soccer-international-clubs-uefa-champions-league',
     'soccer-international-clubs-uefa-europa-league',
     'soccer-international-clubs-t6eeb-uefa-europa-conference-league',
-    'soccer-germany-bundesliga',
-    'soccer-italy-serie-a',
-    'soccer-spain-laliga',
     'soccer-serbia-superliga',
     'soccer-international-wc-qualification-uefa',
     'soccer-international-wc-qualifying-conmebol'
@@ -73,7 +68,7 @@ exports.handler = async (event, context) => {
     // Return the aggregated data in the format the frontend expects
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ competitions }),
     };
 
@@ -86,3 +81,4 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
