@@ -61,7 +61,7 @@ let availableApiPlayers = [];
 let currentTab = 'players';
 let currentStep = 0;
 
-// --- DATA FETCHING & NORMALIZATION (Functions defined before being called) ---
+// --- DATA FETCHING & NORMALIZATION ---
 
 const sportKeyToNameMapping = {
     'soccer_epl': 'England - Premier League',
@@ -100,12 +100,33 @@ const populateCompetitionSelect = () => {
 
 const normalizePlayerPropsData = (data) => {
     const events = [];
+    if (!data) return events;
+    
     for (const sportKey in data) {
         if (!Array.isArray(data[sportKey])) continue;
         data[sportKey].forEach(event => {
             const bookmaker = event.bookmakers?.[0];
             const matchOdds = bookmaker?.markets.find(m => m.key === 'h2h');
             
+            // This object will hold all player prop odds, structured for easier access
+            const playerProps = {};
+            if (bookmaker?.markets) {
+                bookmaker.markets.forEach(market => {
+                    if (market.key.startsWith('player_')) {
+                        market.outcomes.forEach(outcome => {
+                            const playerName = outcome.description;
+                            if (!playerProps[playerName]) {
+                                playerProps[playerName] = { name: playerName, markets: {} };
+                            }
+                            if (!playerProps[playerName].markets[market.key]) {
+                                playerProps[playerName].markets[market.key] = [];
+                            }
+                            playerProps[playerName].markets[market.key].push(outcome);
+                        });
+                    }
+                });
+            }
+
             events.push({
                 id: event.id,
                 name: `${event.home_team} vs ${event.away_team}`,
@@ -115,6 +136,7 @@ const normalizePlayerPropsData = (data) => {
                 competitionName: sportKeyToNameMapping[sportKey] || sportKey,
                 competitionKey: sportKey,
                 source: 'TheOddsAPI',
+                playerProps: Object.values(playerProps), // Attach the structured player props
                 markets: {
                     'soccer.match_odds': {
                         submarkets: { 'period=ft': {
@@ -123,16 +145,7 @@ const normalizePlayerPropsData = (data) => {
                                 price: o.price
                             })) || []
                         }}
-                    },
-                    'soccer.anytime_goalscorer': {
-                        submarkets: { 'period=ft': {
-                            selections: bookmaker?.markets.find(m => m.key === 'player_goal_scorer_anytime')?.outcomes.map(o => ({
-                                status: 'SELECTION_ENABLED',
-                                description: o.description,
-                                price: o.price
-                            })) || []
-                        }}
-                    },
+                    }
                 }
             });
         });
@@ -151,27 +164,26 @@ const fetchApiEvents = async () => {
     try {
         const [cloudbetData, playerPropsData] = await Promise.all([cloudbetPromise, playerPropsPromise]);
         
-        // 1. Process TheOddsAPI data first (primary source for big 5)
         const playerPropsEvents = normalizePlayerPropsData(playerPropsData);
-        const playerPropsEventIds = new Set(playerPropsEvents.map(e => e.id));
+        const hasPlayerPropsData = playerPropsEvents.length > 0;
 
-        // 2. Process Cloudbet data (secondary/fallback source)
+        if (!hasPlayerPropsData) {
+            apiStatus.textContent = 'Nema dostupnih kvota za igrače (verovatno je pauza za reprezentacije). Koristim alternativni API za svih 5 liga.';
+        }
+
         const cloudbetEvents = (cloudbetData.competitions || []).flatMap(comp => 
             comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key, source: 'Cloudbet' }))
         );
 
-        // 3. Merge the data with fallback logic
         const mergedEvents = [...playerPropsEvents];
         const big5CloudbetKeys = new Set(Object.keys(cloudbetToOddsAPIKeyMap));
 
         cloudbetEvents.forEach(event => {
-            // If it's a big 5 league event, only add it if it wasn't already successfully fetched from TheOddsAPI
             if (big5CloudbetKeys.has(event.competitionKey)) {
-                if (!playerPropsEventIds.has(event.id)) {
-                    mergedEvents.push(event); // Add as fallback
+                if (!hasPlayerPropsData) {
+                    mergedEvents.push(event);
                 }
             } else {
-                // If it's NOT a big 5 league (e.g., Champions League), add it regardless
                 mergedEvents.push(event);
             }
         });
@@ -182,7 +194,9 @@ const fetchApiEvents = async () => {
              apiStatus.textContent = 'Nije pronađen nijedan meč.';
         } else {
              populateCompetitionSelect();
-             apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva.`;
+             if (hasPlayerPropsData) {
+                 apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva.`;
+             }
              competitionSelect.disabled = false;
         }
 
@@ -221,27 +235,12 @@ const fetchFbrefData = async () => {
         populateTeamFilter(teams);
     } catch (error) {
         console.error("Greška pri učitavanju lokalnih podataka:", error);
-        indicator.title = "Greška: Nije moguće učitati 'merged_player_stats.json'.";
+        indicator.title = "Greška: Nije moguće učitati 'data/merged_player_stats.json'.";
         statusText.textContent = 'Greška učitavanja baze';
         statusText.className = 'text-red-600';
-        alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'data/merged_player_stats.json' postoji.");
     }
 };
 
-// --- MATH & OTHER FUNCTIONS (Keep all other functions from your previous main.js here) ---
-// ... (factorial, poissonPMF, probToOdd, etc.)
-// ... (addPlayer, populateStandardShotLines, calculatePlayerOdds, etc.)
-// ... (updatePreviewTable, downloadCSV, resetForm, etc.)
-// ... (All UI interaction logic and the Tour logic)
-
-// --- EVENT LISTENERS & INITIALIZATION (Keep all of this the same) ---
-// ... (on(manualEntryBtn, 'click', ...), etc.)
-
-// --- PASTE ALL THE REMAINING JS FUNCTIONS FROM THE PREVIOUS `main.js` HERE ---
-// ... from factCache down to the end of the file ...
-// It is crucial to paste the rest of your functions here for the application to work.
-
-// --- The following is a placeholder for ALL your other functions ---
 let factCache = [1];
 const factorial = n => {
     if (n < 0) return NaN;
@@ -294,8 +293,6 @@ const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
      return probScore * pWinGivenScore;
 };
 
-// --- UI & LOGIC FUNCTIONS ---
-
 function updateTeamSelectFromManual() {
     const home = manualHomeTeam.value || 'Domaćin';
     const away = manualAwayTeam.value || 'Gost';
@@ -347,7 +344,7 @@ const parsePlayerNameFromOutcome = (outcome) => {
 const createShotLineHTML = (threshold, odd, isCustom = false) => {
     const thresholdInput = isCustom 
         ? `<input type="number" class="shots-threshold w-full" value="${threshold || 1}" min="1" step="1">`
-        : `<span class="font-medium text-slate-700">${threshold}+</span>`;
+        : `<span class="shots-threshold font-medium text-slate-700">${threshold}+</span>`; // FIX: Added class
     
     const calcButton = isCustom 
         ? `<button type="button" class="calc-btn calc-shot-btn" title="Izračunaj kvotu za ovu granicu">&#9924;</button>`
@@ -581,7 +578,7 @@ const calculateSingleBaseOdd = (button) => {
 
 const calculatePlayerOdds = () => {
     let allResults = [];
-    const playerCards = document.querySelectorAll('.player-card');
+    const playerCards = $$('.player-card');
     let margin = parseFloat($('#bookmaker-margin').value) || 0;
     
     const eventId = eventSelect.value;
@@ -725,11 +722,13 @@ const calculatePlayerOdds = () => {
         card.querySelectorAll('.shot-line').forEach(line => {
             const oddValue = parseFloat(line.querySelector('.shot-odd-input').value);
             const thresholdEl = line.querySelector('.shots-threshold');
+            if (!thresholdEl) return; // FIX: Guard clause
+
             let threshold;
-            if(thresholdEl.tagName === 'INPUT') {
+            if (thresholdEl.tagName === 'INPUT') {
                 threshold = thresholdEl.value;
-            } else {
-                threshold = line.dataset.threshold;
+            } else { // It's a SPAN
+                threshold = thresholdEl.textContent.replace('+', '').trim();
             }
 
             if (threshold && oddValue > 0) {
@@ -775,7 +774,6 @@ const calculateSpecialOdds = () => {
         results.push({ player: 'Specijal', market2: m2, market3: m3, odd: formatOdd(finalOdd) });
     };
     
-    // Probabilities
     const p_gg = (parseFloat($('#special-gg-prob').value) / 100) || (1 - Math.exp(-goalsLambda * 0.35));
     const p_3plus_goals = event.prob_3plus_goals || probOver(goalsLambda, 2);
     const p_under_4_goals = probUnder(goalsLambda, 4);
@@ -802,7 +800,6 @@ const calculateSpecialOdds = () => {
     const prob_injury_1h = 1 - Math.exp(-lambdaPerMin * 3);
     const prob_injury_2h = 1 - Math.exp(-lambdaPerMin * 6);
 
-    // Calculations
     createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
     createSpecialBet('Penal i crveni karton', '', calculateCorrelatedProbability(p_penal, p_red, 1.1));
     createSpecialBet('Penal ili crveni karton', '', p_penal + p_red - (p_penal * p_red));
@@ -945,7 +942,7 @@ const downloadCSV = () => {
             csvContent += rowData.join(',') + '\r\n';
         });
 
-    } else { // Players tab
+    } else { 
         csvContent += [`MATCH_NAME:${matchName}`, '', '', '', '', '', '', '', '', '', '', '', ''].join(',') + '\r\n';
         
         const playerData = {};
@@ -1000,299 +997,6 @@ const resetForm = () => {
     apiDataDisplay.querySelector('pre').textContent = '';
 };
 
-const populateEventSelect = (competitionKey) => {
-    eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
-    teamSelect.innerHTML = '';
-    teamSelect.disabled = true;
-    apiPlayerAdder.classList.add('hidden');
-    if (!competitionKey) {
-        eventSelect.disabled = true;
-        return;
-    }
-    const eventsInCompetition = allApiEvents.filter(e => e.competitionKey === competitionKey);
-    eventsInCompetition.forEach(event => {
-        if (event && event.home && event.away && event.home.name && event.away.name) {
-            const option = document.createElement('option');
-            option.value = event.id;
-            option.textContent = event.name;
-            eventSelect.appendChild(option);
-        }
-    });
-    eventSelect.disabled = false;
-};
-
-const populateApiPlayerSelect = (players) => {
-    apiPlayerSelect.innerHTML = '<option value="">-- Izaberi igrača --</option>';
-    if (!players || players.length === 0) {
-        apiPlayerAdder.classList.add('hidden');
-        return;
-    }
-
-    players.sort((a, b) => a.name.localeCompare(b.name));
-
-    players.forEach(player => {
-        const option = document.createElement('option');
-        option.value = player.name;
-        let optionText = player.name;
-        if (player.goalscorerOdd) {
-            optionText += ` (${player.goalscorerOdd})`;
-        }
-        option.textContent = optionText;
-        option.dataset.odd = player.goalscorerOdd || '';
-        option.dataset.teamSide = player.teamSide || 'unknown';
-        apiPlayerSelect.appendChild(option);
-    });
-    apiPlayerAdder.classList.remove('hidden');
-};
-
-const setLambdaInput = (element, value, fallback) => {
-    if (value !== null && value > 0) {
-        element.value = value.toFixed(2);
-        element.readOnly = true;
-    } else {
-        element.value = fallback;
-        element.readOnly = false;
-    }
-};
-
-const calculateTeamCornerLambdas = (event, totalLambdaCorners) => {
-    const handicapMarket = event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections;
-    if (!handicapMarket || totalLambdaCorners <= 0) {
-        return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
-    }
-
-    let bestHandicap = null;
-    let minOddDiff = Infinity;
-
-    const handicaps = new Set(handicapMarket.map(s => s.params.replace('handicap=', '')));
-    for (const h of handicaps) {
-        const homeSelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'home');
-        const awaySelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'away');
-        if (homeSelection && awaySelection) {
-            const diff = Math.abs(homeSelection.price - awaySelection.price);
-            if (diff < minOddDiff) {
-                minOddDiff = diff;
-                bestHandicap = parseFloat(h);
-            }
-        }
-    }
-    
-    if (bestHandicap !== null) {
-        const expectedDifference = -bestHandicap;
-        const lambdaHome = (totalLambdaCorners + expectedDifference) / 2;
-        const lambdaAway = totalLambdaCorners - lambdaHome;
-        return { lambdaHome, lambdaAway };
-    }
-
-    return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
-};
-
-const findMarketLine = (event, market, submarket) => {
-    const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
-    if (!selections) return null;
-
-    let bestLine = null;
-    let minProbDiff = Infinity;
-
-    const uniqueLines = [...new Set(selections.map(s => s.params.replace('total=', '')))];
-
-    for (const lineName of uniqueLines) {
-        const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${lineName}`);
-        if (overSelection && overSelection.probability) {
-            const diff = Math.abs(overSelection.probability - 0.5);
-            if (diff < minProbDiff) {
-                minProbDiff = diff;
-                bestLine = lineName;
-            }
-        }
-    }
-    
-    if(!bestLine && uniqueLines.length > 0) {
-        bestLine = uniqueLines[0];
-    }
-
-    if (bestLine) {
-        const overSelection = selections.find(s => s.outcome === 'over' && s.params === `total=${bestLine}`);
-        const probOver = oddToProb(overSelection.price);
-        let lambda = 0;
-        let minError = Infinity;
-        for (let l = 0.1; l < 20; l += 0.05) {
-            const p_over = 1 - poissonCDF(l, parseFloat(bestLine));
-            const error = Math.abs(p_over - probOver);
-            if (error < minError) {
-                minError = error;
-                lambda = l;
-            }
-        }
-        return lambda;
-    }
-    return null;
-};
-
-const calculateTeamLambdas = (event) => {
-    const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
-    const totalGoalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
-
-    if (!matchOddsMarket || !totalGoalsLambda) {
-        return { lambdaHome: null, lambdaAway: null };
-    }
-
-    const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
-    const drawOdd = matchOddsMarket.find(s => s.outcome === 'draw')?.price;
-    const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
-
-    if (!homeOdd || !drawOdd || !awayOdd) return { lambdaHome: null, lambdaAway: null };
-    
-    const normalizeProb = (oHome, oDraw, oAway) => {
-        let pH_raw = 1 / oHome;
-        let pD_raw = 1 / oDraw;
-        let pA_raw = 1 / oAway;
-        let S = pH_raw + pD_raw + pA_raw;
-        return { pH: pH_raw / S, pD: pD_raw / S, pA: pA_raw / S };
-    };
-    
-    const homeWinProb = (muH, muA) => {
-        let prob = 0;
-        let maxGoals = Math.ceil(muH + muA + 10);
-        for (let i = 1; i <= maxGoals; i++) {
-            prob += poissonPMF(muH, i) * poissonCDF(muA, i - 1);
-        }
-        return prob;
-    };
-
-    let { pH } = normalizeProb(homeOdd, drawOdd, awayOdd);
-    let a = 1e-6;
-    let b = totalGoalsLambda - 1e-6;
-    if (a >= b) return { lambdaHome: totalGoalsLambda / 2, lambdaAway: totalGoalsLambda / 2 };
-
-    let mid, fmid;
-    while (b - a > 1e-6) {
-        mid = (a + b) / 2;
-        let muH = mid;
-        let muA = totalGoalsLambda - muH;
-        fmid = homeWinProb(muH, muA) - pH;
-        if (fmid > 0) b = mid;
-        else a = mid;
-    }
-    let muH = (a + b) / 2;
-    let muA = totalGoalsLambda - muH;
-    return { lambdaHome: muH, lambdaAway: muA };
-};
-
-const populateMatchData = (eventId) => {
-    resetForm();
-    const event = allApiEvents.find(e => e.id == eventId);
-    if (!event) {
-        apiPlayerAdder.classList.add('hidden');
-        return;
-    }
-    
-    matchDetailsSection.classList.remove('hidden');
-    const kickoff = new Date(event.cutoffTime);
-    $('#kickoff-date').value = kickoff.toISOString().split('T')[0];
-    $('#kickoff-time').value = get24hTime(kickoff);
-    $('#match-name').value = event.name;
-
-    teamSelect.innerHTML = `<option value="all">Svi Igrači</option>`;
-    const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
-    if (matchOddsMarket) {
-        const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
-        const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
-        teamSelect.innerHTML += `<option value="home" data-odd="${homeOdd || ''}">${event.home.name}</option>`;
-        teamSelect.innerHTML += `<option value="away" data-odd="${awayOdd || ''}">${event.away.name}</option>`;
-        $('#team-win-odd').value = homeOdd || '';
-    }
-    teamSelect.disabled = false;
-    
-    availableApiPlayers = [];
-    const goalscorerSelections = event.markets?.['soccer.anytime_goalscorer']?.submarkets?.['period=ft']?.selections;
-    if (goalscorerSelections) {
-         goalscorerSelections.forEach(selection => {
-            if (event.source === 'Cloudbet' && selection.status === 'SELECTION_ENABLED') {
-                const playerName = parsePlayerNameFromOutcome(selection.outcome);
-                const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
-                availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: playerInfo ? playerInfo.team.toLowerCase() : 'unknown' });
-            } else if (event.source === 'TheOddsAPI') {
-                availableApiPlayers.push({ name: selection.description, goalscorerOdd: selection.price, teamSide: 'unknown' });
-            }
-         });
-    }
-    populateApiPlayerSelect(availableApiPlayers);
-    
-    const ggInput = $('#special-gg-prob');
-    const bttsMarket = event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections;
-    let ggProb = null;
-    if (bttsMarket) {
-        const yesOdd = bttsMarket.find(s => s.outcome === 'yes')?.price;
-        if (yesOdd) {
-            ggProb = oddToProb(yesOdd);
-            event.prob_gg = ggProb; 
-        }
-    }
-    
-    if (ggProb) {
-        ggInput.value = (ggProb * 100).toFixed(2);
-        ggInput.readOnly = true;
-    } else {
-        ggInput.value = 55.0;
-        ggInput.readOnly = false;
-    }
-
-    const goalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
-    const cornersLambda = findMarketLine(event, 'soccer.total_corners', 'period=ft_corners');
-    const cardsLambda = findMarketLine(event, 'soccer.totals.cards', 'period=ft');
-
-    const over2_5_goals = event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections.find(s => s.params === 'total=2.5' && s.outcome === 'over');
-    if (over2_5_goals) event.prob_3plus_goals = oddToProb(over2_5_goals.price);
-
-    const over9_5_corners = event.markets?.['soccer.total_corners']?.submarkets?.['period=ft_corners']?.selections.find(s => s.params === 'total=9.5' && s.outcome === 'over');
-    if (over9_5_corners) event.prob_10plus_corners = oddToProb(over9_5_corners.price);
-    
-    setLambdaInput($('#special-goals-lambda'), goalsLambda, 2.5);
-    setLambdaInput($('#special-corners-lambda'), cornersLambda, 10.5);
-    setLambdaInput($('#special-cards-lambda'), cardsLambda, 4.5);
-    
-    const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
-    event.lambdaHome = lambdaHome;
-    event.lambdaAway = lambdaAway;
-    setLambdaInput($('#special-goals-lambda-home'), lambdaHome, (goalsLambda || 2.5) / 2);
-    setLambdaInput($('#special-goals-lambda-away'), lambdaAway, (goalsLambda || 2.5) / 2);
-
-    const totalCorners = parseFloat($('#special-corners-lambda').value);
-    const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
-    
-    setLambdaInput($('#special-corners-lambda-home'), cornerLambdaHome, totalCorners * 0.55);
-    setLambdaInput($('#special-corners-lambda-away'), cornerLambdaAway, totalCorners * 0.45);
-
-    let formattedApiText = '';
-    const marketsToDisplay = {
-        'Golovi': event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections,
-        'Korneri': event.markets?.['soccer.total_corners']?.submarkets?.['period=ft_corners']?.selections,
-        'Hendikep Kornera': event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections,
-        'Kartoni': event.markets?.['soccer.totals.cards']?.submarkets?.['period=ft']?.selections,
-        'Oba Tima Daju Gol': event.markets?.['soccer.both_teams_to_score']?.submarkets?.['period=ft']?.selections,
-    };
-
-    for(const [name, selections] of Object.entries(marketsToDisplay)) {
-        if (selections && selections.length > 0) {
-            formattedApiText += `${name}:\n`;
-            const lines = {};
-            selections.forEach(sel => {
-                const key = sel.params || sel.outcome;
-                if (!lines[key]) lines[key] = {};
-                lines[key][sel.outcome] = sel.price;
-            });
-            for (const [line, outcomes] of Object.entries(lines)) {
-                 formattedApiText += `  - ${line}: `;
-                 const odds = Object.entries(outcomes).map(([type, price]) => `${type}@${price}`).join(', ');
-                 formattedApiText += `${odds}\n`;
-            }
-            formattedApiText += '\n';
-        }
-    }
-    apiDataDisplay.querySelector('pre').textContent = formattedApiText || 'Nema dostupnih podataka za ove markete.';
-};
-
 const addCustomSpecialBet = () => {
     const market2 = $('#custom-market2').value;
     const market3 = $('#custom-market3').value;
@@ -1327,16 +1031,15 @@ function openTeamMapping() {
     window.open('/team-mapping.html', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
 }
 
-// --- TOUR LOGIC ---
-const tourSteps = [
-    { element: '#fetch-api-btn', title: 'Korak 1: Učitavanje Mečeva', text: 'Kliknite ovde da biste preuzeli najnovije mečeve i kvote sa API-ja.', position: 'bottom' },
-    { element: '#competition-select', title: 'Korak 2: Izbor Takmičenja', text: 'Nakon učitavanja, ovde izaberite željeno takmičenje.', position: 'bottom' },
-    { element: '#event-select', title: 'Korak 3: Izbor Meča', text: 'Zatim, izaberite meč za koji želite da generišete kvote.', position: 'bottom' },
-    { element: '#team-select', title: 'Korak 4: Izbor Tima', text: 'Možete filtrirati igrače po timu kako biste lakše pronašli željenog igrača.', position: 'right' },
-    { element: '#api-player-adder', title: 'Korak 5: Dodavanje Igrača', text: 'Izaberite igrača iz padajućeg menija i kliknite na "+" dugme da ga dodate u listu za obradu.', position: 'bottom' },
-    { element: '#generate-btn', title: 'Korak 6: Generisanje Kvota', text: 'Kada ste dodali sve željene igrače, kliknite ovde da generišete sve kvote.', position: 'top' },
-    { element: '#download-csv-btn', title: 'Korak 7: Preuzimanje CSV Fajla', text: 'Na kraju, preuzmite generisane kvote u CSV formatu klikom na ovo dugme.', position: 'top' },
-];
+function startTour() {
+    currentStep = 0;
+    showStep(currentStep);
+}
+
+function endTour() {
+    tourHighlight.classList.add('hidden');
+    tourTooltip.classList.add('hidden');
+}
 
 function showStep(index) {
     const step = tourSteps[index];
@@ -1392,33 +1095,20 @@ function showStep(index) {
     tourNext.textContent = index === tourSteps.length - 1 ? 'Završi' : 'Dalje';
 }
 
-function startTour() {
-    currentStep = 0;
-    showStep(currentStep);
-}
-
-function endTour() {
-    tourHighlight.classList.add('hidden');
-    tourTooltip.classList.add('hidden');
-}
-
 function makeDraggable(element) {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
     const header = element.querySelector("h3");
+    if (header) { header.onmousedown = dragMouseDown; }
 
-    const dragMouseDown = (e) => {
+    function dragMouseDown(e) {
         e.preventDefault();
         pos3 = e.clientX;
         pos4 = e.clientY;
         document.onmouseup = closeDragElement;
         document.onmousemove = elementDrag;
-    };
-
-    if (header) {
-        header.onmousedown = dragMouseDown;
     }
 
-    const elementDrag = (e) => {
+    function elementDrag(e) {
         e.preventDefault();
         pos1 = pos3 - e.clientX;
         pos2 = pos4 - e.clientY;
@@ -1426,238 +1116,15 @@ function makeDraggable(element) {
         pos4 = e.clientY;
         element.style.top = (element.offsetTop - pos2) + "px";
         element.style.left = (element.offsetLeft - pos1) + "px";
-    };
+    }
 
-    const closeDragElement = () => {
+    function closeDragElement() {
         document.onmouseup = null;
         document.onmousemove = null;
-    };
+    }
 }
 
-
-// --- EVENT LISTENERS ---
-
-on(manualEntryBtn, 'click', () => {
-    isManualMode = !isManualMode;
-    if (isManualMode) {
-        apiInputs.classList.add('hidden');
-        manualInputs.classList.remove('hidden');
-        matchDetailsSection.classList.remove('hidden');
-        manualEntryBtnText.textContent = 'Izaberi Meč sa API-ja';
-        manualEntryBtn.classList.remove('primary');
-        manualEntryBtn.classList.add('secondary');
-        teamSelect.disabled = false;
-        
-        const kickoffDateInput = $('#kickoff-date');
-        if (!kickoffDateInput.value) {
-            const now = new Date();
-            kickoffDateInput.value = now.toISOString().split('T')[0];
-            $('#kickoff-time').value = get24hTime(now);
-        }
-        
-        updateTeamSelectFromManual();
-    } else {
-        apiInputs.classList.remove('hidden');
-        manualInputs.classList.add('hidden');
-        manualEntryBtnText.textContent = 'Dodaj Meč Ručno';
-        manualEntryBtn.classList.add('primary');
-        manualEntryBtn.classList.remove('secondary');
-        if (!eventSelect.value) {
-            matchDetailsSection.classList.add('hidden');
-            teamSelect.disabled = true;
-        }
-    }
-});
-
-on(manualHomeTeam, 'input', updateTeamSelectFromManual);
-on(manualAwayTeam, 'input', updateTeamSelectFromManual);
-
-tabButtons.forEach(button => {
-    on(button, 'click', () => {
-        const tab = button.dataset.tab;
-        currentTab = tab;
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        tabContents.forEach(content => content.classList.remove('active'));
-        $(`#tab-${tab}`).classList.add('active');
-        $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
-        previewSection.classList.add('hidden');
-
-        const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
-        if (eventSelectOption && eventSelect.value) {
-            if (tab === 'specials') {
-                $('#match-name').value = eventSelectOption.textContent;
-            } else {
-                const teamFilterValue = teamFilter.value;
-                const teamSelectOption = teamSelect.options[teamSelect.selectedIndex];
-                if (teamFilterValue) {
-                    $('#match-name').value = teamFilterValue;
-                } else if (teamSelectOption && teamSelect.value !== 'all') {
-                    $('#match-name').value = teamSelectOption.textContent;
-                } else {
-                    $('#match-name').value = eventSelectOption.textContent;
-                }
-            }
-        }
-    });
-});
-
-on(fetchApiBtn, 'click', fetchApiEvents);
-on(competitionSelect, 'change', e => populateEventSelect(e.target.value));
-on(eventSelect, 'change', e => populateMatchData(e.target.value));
-
-on(teamSelect, 'change', e => {
-    const selectedOption = e.target.options[e.target.selectedIndex];
-    const odd = selectedOption.dataset.odd;
-    if (odd) $('#team-win-odd').value = odd;
-    
-    if (currentTab === 'players') {
-        if (e.target.value === 'all' || !selectedOption.textContent) {
-            const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
-            $('#match-name').value = eventSelectOption.textContent || '';
-        } else {
-            $('#match-name').value = selectedOption.textContent;
-        }
-    }
-
-    const teamName = selectedOption.textContent;
-    const injuryContainer = $('#team-injury-display');
-    const lineupContainer = $('#team-lineup-display');
-
-    if (teamName && e.target.value !== 'all') {
-        injuryContainer.style.display = 'block';
-        window.injuryManager.displayInjuries(teamName, 'team-injury-display');
-        lineupContainer.style.display = 'block';
-        window.lineupManager.displayLineup(teamName, 'team-lineup-display');
-    } else {
-        injuryContainer.style.display = 'none';
-        lineupContainer.style.display = 'none';
-    }
-
-    const selectedTeamSide = e.target.value;
-    const playersToDisplay = selectedTeamSide === 'all' 
-        ? availableApiPlayers 
-        : availableApiPlayers.filter(p => p.teamSide === selectedTeamSide || p.teamSide === 'unknown');
-    populateApiPlayerSelect(playersToDisplay);
-});
-
-on(addApiPlayerBtn, 'click', () => {
-    const selectedOption = apiPlayerSelect.options[apiPlayerSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) return;
-    const playerName = selectedOption.value;
-
-    if (window.injuryManager) {
-        const injuryInfo = window.injuryManager.isPlayerInjured(playerName);
-        if (injuryInfo) {
-            const message = `${playerName} je možda povređen.\n\nInfo: ${injuryInfo.info}\nOčekivani povratak: ${injuryInfo.expected_return}\n\nDa li želite da ga dodate uprkos tome?`;
-            if (!confirm(message)) {
-                return;
-            }
-        }
-    }
-
-    const goalscorerOdd = selectedOption.dataset.odd;
-    const teamSide = selectedOption.dataset.teamSide;
-    const existingPlayers = Array.from(document.querySelectorAll('.player-name-search')).map(input => input.value);
-    if (existingPlayers.includes(playerName)) {
-        alert(`Igrač ${playerName} je već dodat.`);
-        return;
-    }
-    const playerCard = addPlayer({ name: playerName, goalscorerOdd, teamSide });
-    playersContainer.appendChild(playerCard);
-    const fbrefPlayer = allFbrefStats.find(p => p.Player.toLowerCase() === playerName.toLowerCase());
-    if (fbrefPlayer) {
-        const nameInput = playerCard.querySelector('.player-name-search');
-        selectPlayerFromDb(nameInput, fbrefPlayer);
-    }
-});
-
-on(generateBtn, 'click', (e) => { 
-    e.preventDefault(); 
-    const btnText = $('#generate-btn-text');
-    generateBtn.disabled = true;
-    btnText.textContent = 'Računam...';
-    setTimeout(() => {
-        const generatedData = currentTab === 'players' ? calculatePlayerOdds() : calculateSpecialOdds();
-        updatePreviewTable(generatedData);
-        generateBtn.disabled = false;
-        btnText.textContent = currentTab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
-    }, 50);
-});
-
-on(downloadCsvBtn, 'click', downloadCSV);
-on(addPlayerBtn, 'click', () => playersContainer.appendChild(addPlayer()));
-on(resetBtn, 'click', () => {
-    const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = get24hTime(now);
-    resetForm();
-    $('#kickoff-date').value = date;
-    $('#kickoff-time').value = time;
-});
-
-on(playersContainer, 'input', e => { 
-    if (e.target.classList.contains('player-name-search')) showAutocomplete(e.target);
-    if (e.target.matches('.player-stat[data-stat="Sh_90"]')) {
-        const card = e.target.closest('.player-card');
-        populateStandardShotLines(card);
-    }
-});
-on(document, 'click', e => {
-     if (!e.target.closest('.player-name-search')) {
-        $$('.autocomplete-suggestions').forEach(s => s.classList.add('hidden'));
-    }
-});
-on(playersContainer, 'click', e => {
-    const target = e.target.closest('button');
-    if (!target) return;
-    if (target.classList.contains('remove-player-btn')) target.closest('.player-card')?.remove();
-    else if (target.classList.contains('add-shot-line-btn')) target.previousElementSibling.insertAdjacentHTML('beforeend', createShotLineHTML('', '', true));
-    else if (target.classList.contains('calc-shot-btn')) calculateOddForLine(target);
-    else if (target.classList.contains('remove-shot-line-btn')) target.closest('.shot-line')?.remove();
-    else if (target.classList.contains('calc-btn')) calculateSingleBaseOdd(target);
-});
-on(previewTableBody, 'click', e => {
-    const target = e.target.closest('.remove-preview-row');
-    if (target) target.closest('tr').remove();
-});
-
-on(teamFilter, 'change', () => {
-     if (currentTab !== 'players') return;
-    const selectedTeam = teamFilter.value;
-    if (selectedTeam) {
-        $('#match-name').value = selectedTeam;
-    } else {
-        const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
-        if (eventSelectOption && eventSelect.value) {
-            $('#match-name').value = eventSelectOption.textContent;
-        }
-    }
-});
-
-on(toggleApiDataBtn, 'click', () => apiDataDisplay.classList.toggle('hidden'));
-on(addCustomBetBtn, 'click', addCustomSpecialBet);
-
-// Tour Listeners
-on(startTourBtn, 'click', startTour);
-on(tourSkip, 'click', endTour);
-on(tourClose, 'click', endTour);
-on(tourNext, 'click', () => {
-    if (currentStep < tourSteps.length - 1) {
-        currentStep++;
-        showStep(currentStep);
-    } else {
-        endTour();
-    }
-});
-on(tourPrev, 'click', () => {
-    if (currentStep > 0) {
-        currentStep--;
-        showStep(currentStep);
-    }
-});
-
-// --- INITIALIZATION ---
+// --- INITIALIZATION & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     $('#kickoff-date').value = now.toISOString().split('T')[0];
@@ -1665,8 +1132,265 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.injuryManager.initialize();
     window.lineupManager.initialize();
-    
     fetchFbrefData();
     makeDraggable(tourTooltip);
+
+    on(fetchApiBtn, 'click', fetchApiEvents);
+    on(addPlayerBtn, 'click', () => playersContainer.appendChild(addPlayer()));
+    on(resetBtn, 'click', resetForm);
+    on(generateBtn, 'click', (e) => { 
+        e.preventDefault(); 
+        const btnText = $('#generate-btn-text');
+        generateBtn.disabled = true;
+        btnText.textContent = 'Računam...';
+        setTimeout(() => {
+            const generatedData = currentTab === 'players' ? calculatePlayerOdds() : calculateSpecialOdds();
+            updatePreviewTable(generatedData);
+            generateBtn.disabled = false;
+            btnText.textContent = currentTab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
+        }, 50);
+    });
+
+    on(manualEntryBtn, 'click', () => {
+        isManualMode = !isManualMode;
+        apiInputs.classList.toggle('hidden', isManualMode);
+        manualInputs.classList.toggle('hidden', !isManualMode);
+        matchDetailsSection.classList.toggle('hidden', !isManualMode);
+        manualEntryBtn.classList.toggle('primary', !isManualMode);
+        manualEntryBtn.classList.toggle('secondary', isManualMode);
+        manualEntryBtnText.textContent = isManualMode ? 'Izaberi Meč sa API-ja' : 'Dodaj Meč Ručno';
+        if(isManualMode) updateTeamSelectFromManual();
+    });
+
+    on(manualHomeTeam, 'input', updateTeamSelectFromManual);
+    on(manualAwayTeam, 'input', updateTeamSelectFromManual);
+
+    tabButtons.forEach(button => {
+        on(button, 'click', () => {
+            currentTab = button.dataset.tab;
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            tabContents.forEach(content => content.classList.remove('active'));
+            $(`#tab-${currentTab}`).classList.add('active');
+        });
+    });
+
+    on(competitionSelect, 'change', e => {
+        const key = e.target.value;
+        eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
+        if (!key) {
+            eventSelect.disabled = true;
+            return;
+        }
+        allApiEvents.filter(event => event.competitionKey === key)
+            .sort((a,b) => new Date(a.cutoffTime) - new Date(b.cutoffTime))
+            .forEach(event => {
+                const option = document.createElement('option');
+                option.value = event.id;
+                option.textContent = event.name;
+                eventSelect.appendChild(option);
+            });
+        eventSelect.disabled = false;
+    });
+
+    on(eventSelect, 'change', e => populateMatchData(e.target.value));
+
+    on(teamSelect, 'change', e => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        $('#team-win-odd').value = selectedOption.dataset.odd || '';
+        const teamName = selectedOption.textContent;
+        const showInfo = teamName && e.target.value !== 'all';
+        $('#team-injury-display').style.display = showInfo ? 'block' : 'none';
+        $('#team-lineup-display').style.display = showInfo ? 'block' : 'none';
+        if(showInfo) {
+            window.injuryManager.displayInjuries(teamName, 'team-injury-display');
+            window.lineupManager.displayLineup(teamName, 'team-lineup-display');
+        }
+    });
+
+    on(addApiPlayerBtn, 'click', () => {
+        const selectedPlayerName = apiPlayerSelect.value;
+        if (!selectedPlayerName) return;
+    
+        const playerDataFromApi = availableApiPlayers.find(p => p.name === selectedPlayerName);
+        const fbrefPlayer = allFbrefStats.find(p => p.Player.toLowerCase() === selectedPlayerName.toLowerCase());
+    
+        const initialData = {
+            name: selectedPlayerName,
+            teamSide: playerDataFromApi?.teamSide || 'unknown',
+            goalscorerOdd: playerDataFromApi?.markets?.['player_goal_scorer_anytime']?.[0]?.price,
+            ...(fbrefPlayer || {})
+        };
+        
+        const playerCard = addPlayer(initialData);
+        playersContainer.appendChild(playerCard);
+
+        if (playerDataFromApi && playerDataFromApi.markets) {
+            const oddsAPIToInternalMap = {
+                'player_assists': 'asistencija',
+                'player_to_receive_card': 'zuti-karton',
+            };
+    
+            for (const [apiKey, internalKey] of Object.entries(oddsAPIToInternalMap)) {
+                const oddValue = playerDataFromApi.markets[apiKey]?.[0]?.price;
+                if (oddValue) {
+                    const input = playerCard.querySelector(`.player-base-odd[data-odd-type="${internalKey}"]`);
+                    if (input) input.value = oddValue;
+                }
+            }
+            
+            // Handle shots on target (1+)
+            const sotMarket = playerDataFromApi.markets['player_shots_on_target'];
+            const sotOver05 = sotMarket?.find(o => o.name === 'Over' && o.point === 0.5);
+            if (sotOver05) {
+                const input = playerCard.querySelector('.player-base-odd[data-odd-type="sutevi-okvir-1"]');
+                if (input) input.value = sotOver05.price;
+            }
+
+            // Handle total shots (populate multiple lines)
+            const shotsMarket = playerDataFromApi.markets['player_shots'];
+            const shotsContainer = playerCard.querySelector('.shots-lines-container');
+            if (shotsMarket && shotsContainer) {
+                shotsContainer.innerHTML = ''; // Clear default/calculated lines
+                shotsMarket.filter(o => o.name === 'Over').forEach(outcome => {
+                    const threshold = outcome.point + 0.5;
+                    shotsContainer.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
+                });
+            }
+        }
+    });
+    
+    // ... all other event listeners
+    on(downloadCsvBtn, 'click', downloadCSV);
+    on(playersContainer, 'input', e => { 
+        if (e.target.classList.contains('player-name-search')) showAutocomplete(e.target);
+        if (e.target.matches('.player-stat[data-stat="Sh_90"]')) populateStandardShotLines(e.target.closest('.player-card'));
+    });
+    on(document, 'click', e => {
+         if (!e.target.closest('.player-name-search')) $$('.autocomplete-suggestions').forEach(s => s.classList.add('hidden'));
+    });
+    on(playersContainer, 'click', e => {
+        const target = e.target.closest('button');
+        if (!target) return;
+        if (target.classList.contains('remove-player-btn')) target.closest('.player-card')?.remove();
+        if (target.classList.contains('add-shot-line-btn')) target.previousElementSibling.insertAdjacentHTML('beforeend', createShotLineHTML('', '', true));
+        if (target.classList.contains('calc-shot-btn')) calculateOddForLine(target);
+        if (target.classList.contains('remove-shot-line-btn')) target.closest('.shot-line')?.remove();
+        if (target.classList.contains('calc-btn')) calculateSingleBaseOdd(target);
+    });
+    on(previewTableBody, 'click', e => {
+        if (e.target.closest('.remove-preview-row')) e.target.closest('tr').remove();
+    });
+    on(toggleApiDataBtn, 'click', () => apiDataDisplay.classList.toggle('hidden'));
+    on(addCustomBetBtn, 'click', addCustomSpecialBet);
+    on(startTourBtn, 'click', startTour);
+    on(tourSkip, 'click', endTour);
+    on(tourClose, 'click', endTour);
+    on(tourNext, 'click', () => {
+        if (currentStep < tourSteps.length - 1) {
+            currentStep++;
+            showStep(currentStep);
+        } else endTour();
+    });
+    on(tourPrev, 'click', () => {
+        if (currentStep > 0) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    });
 });
+
+const populateEventSelect = (competitionKey) => {
+    eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
+    teamSelect.innerHTML = '';
+    teamSelect.disabled = true;
+    apiPlayerAdder.classList.add('hidden');
+    if (!competitionKey) {
+        eventSelect.disabled = true;
+        return;
+    }
+    const eventsInCompetition = allApiEvents.filter(e => e.competitionKey === competitionKey);
+    eventsInCompetition
+        .sort((a, b) => new Date(a.cutoffTime) - new Date(b.cutoffTime))
+        .forEach(event => {
+            if (event && event.home && event.away && event.home.name && event.away.name) {
+                const option = document.createElement('option');
+                option.value = event.id;
+                option.textContent = `${event.home.name} vs ${event.away.name}`;
+                eventSelect.appendChild(option);
+            }
+        });
+    eventSelect.disabled = false;
+};
+
+const populateApiPlayerSelect = (players) => {
+    apiPlayerSelect.innerHTML = '<option value="">-- Izaberi igrača --</option>';
+    if (!players || players.length === 0) {
+        apiPlayerAdder.classList.add('hidden');
+        return;
+    }
+
+    players.sort((a, b) => a.name.localeCompare(b.name));
+
+    players.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.name;
+        
+        let optionText = player.name;
+        if (player.markets?.player_goal_scorer_anytime?.[0]?.price) {
+            optionText += ` (${player.markets.player_goal_scorer_anytime[0].price})`;
+        }
+        option.textContent = optionText;
+        option.dataset.teamSide = player.teamSide || 'unknown';
+        apiPlayerSelect.appendChild(option);
+    });
+    apiPlayerAdder.classList.remove('hidden');
+};
+
+const populateMatchData = (eventId) => {
+    resetForm();
+    const event = allApiEvents.find(e => e.id == eventId);
+    if (!event) {
+        apiPlayerAdder.classList.add('hidden');
+        return;
+    }
+    
+    matchDetailsSection.classList.remove('hidden');
+    const kickoff = new Date(event.cutoffTime);
+    $('#kickoff-date').value = kickoff.toISOString().split('T')[0];
+    $('#kickoff-time').value = get24hTime(kickoff);
+    $('#match-name').value = event.name;
+
+    teamSelect.innerHTML = `<option value="all">Svi Igrači</option>`;
+    const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
+    if (matchOddsMarket) {
+        const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
+        const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
+        teamSelect.innerHTML += `<option value="home" data-odd="${homeOdd || ''}">${event.home.name}</option>`;
+        teamSelect.innerHTML += `<option value="away" data-odd="${awayOdd || ''}">${event.away.name}</option>`;
+        $('#team-win-odd').value = homeOdd || '';
+    }
+    teamSelect.disabled = false;
+    
+    availableApiPlayers = [];
+    if (event.source === 'Cloudbet') {
+        const goalscorerSelections = event.markets?.['soccer.anytime_goalscorer']?.submarkets?.['period=ft']?.selections;
+        if (goalscorerSelections) {
+             goalscorerSelections.forEach(selection => {
+                if (selection.status === 'SELECTION_ENABLED') {
+                    const playerName = parsePlayerNameFromOutcome(selection.outcome);
+                    const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
+                    availableApiPlayers.push({ 
+                        name: playerName, 
+                        markets: { 'player_goal_scorer_anytime': [{price: selection.price}] },
+                        teamSide: playerInfo ? playerInfo.team.toLowerCase() : 'unknown' 
+                    });
+                }
+             });
+        }
+    } else if (event.source === 'TheOddsAPI') {
+        availableApiPlayers = event.playerProps || [];
+    }
+    populateApiPlayerSelect(availableApiPlayers);
+};
 
