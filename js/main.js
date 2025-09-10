@@ -1175,7 +1175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const teamName = selectedOption.textContent;
         const showInfo = teamName && e.target.value !== 'all';
 
-        // Update Match Name field
         if (showInfo) {
             $('#match-name').value = teamName;
         } else {
