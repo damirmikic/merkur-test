@@ -1,4 +1,5 @@
-// NOTE: No longer requires 'node-fetch'
+const fetch = require('node-fetch'); // Required for this specific function runtime
+
 exports.handler = async (event, context) => {
     const API_KEYS = process.env.THE_ODDS_API_KEYS ? process.env.THE_ODDS_API_KEYS.split(',') : [];
     if (API_KEYS.length === 0) {
@@ -9,7 +10,7 @@ exports.handler = async (event, context) => {
         'soccer_epl', 'soccer_france_ligue_one', 'soccer_germany_bundesliga',
         'soccer_italy_serie_a', 'soccer_spain_la_liga'
     ];
-    const MARKETS = 'player_goal_scorer_anytime,player_to_receive_card,player_shots_on_target,player_shots,player_assists';
+    const MARKETS = 'h2h,player_goal_scorer_anytime';
     const BASE_URL = 'https://api.the-odds-api.com/v4/sports';
     let keyIndex = 0;
 
@@ -23,46 +24,36 @@ exports.handler = async (event, context) => {
                 const response = await fetch(fullUrl);
                 if (response.ok) return response.json();
                 if (response.status === 401 || response.status === 429) {
-                    console.warn(`Key ${keyIndex} failed or rate-limited. Trying next.`);
+                    console.warn(`Key index ${keyIndex} failed or rate-limited. Trying next.`);
                     continue;
                 }
+                // For other errors, stop and report
                 throw new Error(`API responded with status: ${response.status}`);
             } catch (error) {
-                console.error(`Error with key ${keyIndex}:`, error);
+                console.error(`Error with key index ${keyIndex}:`, error.message);
+                // Don't continue if it's a non-API key error
+                if (!(error.message.includes('401') || error.message.includes('429'))) {
+                   throw error;
+                }
             }
         }
-        throw new Error('All API keys failed.');
+        throw new Error('All API keys failed or were rate-limited.');
     };
 
     try {
         const allEventsWithProps = {};
         
-        const eventPromises = SPORTS.map(sport => 
-            fetchWithFallback(`${BASE_URL}/${sport}/events?dateFormat=iso`)
-        );
-        const eventResults = await Promise.allSettled(eventPromises);
-
-        const allUpcomingEvents = eventResults
-            .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
-            .flatMap(res => res.value.map(event => ({ ...event, sport_key: sport })));
-
-        const oddsPromises = allUpcomingEvents.map(event => 
-            fetchWithFallback(`${BASE_URL}/${event.sport_key}/events/${event.id}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal`)
-                .then(oddsData => ({ ...event, ...oddsData }))
-                .catch(e => ({...event, error: e.message}))
-        );
-
-        const fullEventData = await Promise.all(oddsPromises);
-
-        fullEventData.forEach(event => {
-            if (!event.error) {
-                if (!allEventsWithProps[event.sport_key]) {
-                    allEventsWithProps[event.sport_key] = [];
-                }
-                allEventsWithProps[event.sport_key].push(event);
+        for (const sport of SPORTS) {
+            const eventsUrl = `${BASE_URL}/${sport}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal&dateFormat=iso`;
+            try {
+                const events = await fetchWithFallback(eventsUrl);
+                allEventsWithProps[sport] = events;
+            } catch (error) {
+                 console.error(`Could not fetch events for ${sport}: ${error.message}`);
+                 allEventsWithProps[sport] = [];
             }
-        });
-
+        }
+        
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
