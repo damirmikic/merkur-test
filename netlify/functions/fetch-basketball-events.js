@@ -1,5 +1,4 @@
 exports.handler = async function(event, context) {
-  // Korišćenje API ključa iz Netlify environment variables
   const API_KEY = process.env.API_KEY;
 
   if (!API_KEY) {
@@ -9,7 +8,6 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // Ažuriran URL da uključi i market za poene u prvom poluvremenu
   const API_ENDPOINT = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/basketball-international-european-championship?markets=basketball.moneyline&markets=basketball.totals&markets=basketball.player_points&markets=basketball.1st_half_team_total&players=true&limit=1000`;
 
   try {
@@ -30,7 +28,6 @@ exports.handler = async function(event, context) {
 
     let data = await response.json();
 
-    // Filtriranje događaja - isključuju se svi koji su tipa 'EVENT_TYPE_OUTRIGHT'
     if (data && data.events && Array.isArray(data.events)) {
         const filteredEvents = data.events.filter(event => event.type !== 'EVENT_TYPE_OUTRIGHT');
         data.events = filteredEvents;
@@ -38,6 +35,7 @@ exports.handler = async function(event, context) {
 
     return {
       statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify(data)
     };
   } catch (error) {
