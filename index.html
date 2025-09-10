@@ -775,6 +775,92 @@
         let availableApiPlayers = [];
         let currentTab = 'players';
         
+
+        const fetchApiEvents = async () => {
+            apiBtnText.textContent = 'Učitavam...';
+            fetchApiBtn.disabled = true;
+            apiStatus.textContent = 'Preuzimanje podataka sa oba API-ja...';
+            
+            const cloudbetPromise = fetch('/api/events').then(res => res.ok ? res.json() : {competitions: []});
+            const playerPropsPromise = fetch('/api/player-props').then(res => res.ok ? res.json() : {});
+
+            try {
+                const [cloudbetData, playerPropsData] = await Promise.all([cloudbetPromise, playerPropsPromise]);
+                
+                const cloudbetEvents = (cloudbetData.competitions || []).flatMap(comp => 
+                    comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key, source: 'Cloudbet' }))
+                );
+
+                const playerPropsEvents = normalizePlayerPropsData(playerPropsData);
+
+                allApiEvents = [...cloudbetEvents, ...playerPropsEvents];
+
+                if (allApiEvents.length === 0) {
+                    apiStatus.textContent = 'Nije pronađen nijedan meč.';
+                } else {
+                    populateCompetitionSelect();
+                    apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva.`;
+                    competitionSelect.disabled = false;
+                }
+
+            } catch (error) {
+                apiStatus.textContent = `Greška: ${error.message}`;
+                console.error("API Fetch Error:", error);
+            } finally {
+                apiBtnText.textContent = 'Učitaj Mečeve sa API-ja';
+                fetchApiBtn.disabled = false;
+            }
+        };
+        
+        const sportKeyToNameMapping = {
+            'soccer_epl': 'England - Premier League',
+            'soccer_france_ligue_one': 'France - Ligue 1',
+            'soccer_germany_bundesliga': 'Germany - Bundesliga',
+            'soccer_italy_serie_a': 'Italy - Serie A',
+            'soccer_spain_la_liga': 'Spain - La Liga',
+        };
+
+        const normalizePlayerPropsData = (data) => {
+            const events = [];
+            for (const sportKey in data) {
+                if(!Array.isArray(data[sportKey])) continue;
+                data[sportKey].forEach(event => {
+                    const bookmaker = event.bookmakers?.[0];
+                    const matchOdds = bookmaker?.markets.find(m => m.key === 'h2h');
+                    
+                    events.push({
+                        id: event.id,
+                        name: `${event.home_team} vs ${event.away_team}`,
+                        home: { name: event.home_team },
+                        away: { name: event.away_team },
+                        cutoffTime: event.commence_time,
+                        competitionName: sportKeyToNameMapping[sportKey] || sportKey,
+                        competitionKey: sportKey,
+                        source: 'TheOddsAPI',
+                        markets: {
+                            'soccer.match_odds': {
+                                submarkets: { 'period=ft': {
+                                    selections: matchOdds?.outcomes.map(o => ({
+                                        outcome: o.name === event.home_team ? 'home' : (o.name === event.away_team ? 'away' : 'draw'),
+                                        price: o.price
+                                    })) || []
+                                }}
+                            },
+                            'soccer.anytime_goalscorer': {
+                                submarkets: { 'period=ft': {
+                                    selections: bookmaker?.markets.find(m => m.key === 'player_goal_scorer_anytime')?.outcomes.map(o => ({
+                                        status: 'SELECTION_ENABLED',
+                                        description: o.description,
+                                        price: o.price
+                                    })) || []
+                                }}
+                            },
+                        }
+                    });
+                });
+            }
+            return events;
+        };
         // --- Manual Mode & Team Name Logic ---
         on(manualEntryBtn, 'click', () => {
             isManualMode = !isManualMode;
@@ -1610,7 +1696,29 @@
             }
         };
         
-       const populateEventSelect = (competitionKey) => {
+        const populateApiPlayerSelect = (players) => {
+            apiPlayerSelect.innerHTML = '<option value="">-- Izaberi igrača --</option>';
+            if (!players || players.length === 0) {
+                apiPlayerAdder.classList.add('hidden');
+                return;
+            }
+            players.sort((a, b) => a.name.localeCompare(b.name));
+            players.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player.name;
+                let optionText = player.name;
+                if (player.goalscorerOdd) {
+                    optionText += ` (${player.goalscorerOdd})`;
+                }
+                option.textContent = optionText;
+                option.dataset.odd = player.goalscorerOdd || '';
+                option.dataset.teamSide = player.teamSide || 'unknown';
+                apiPlayerSelect.appendChild(option);
+            });
+            apiPlayerAdder.classList.remove('hidden');
+        };
+        
+        const populateEventSelect = (competitionKey) => {
             eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
             teamSelect.innerHTML = '';
             teamSelect.disabled = true;
@@ -1800,7 +1908,7 @@
                         const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
                         if(playerInfo) teamSide = playerInfo.team.toLowerCase();
                     } else if (event.source === 'TheOddsAPI') {
-                        playerName = selection.description; 
+                         playerName = selection.description; 
                     }
 
                     if(playerName){
@@ -1861,36 +1969,6 @@
 
 
         // --- Event Listeners ---
-        tabButtons.forEach(button => {
-            on(button, 'click', () => {
-                const tab = button.dataset.tab;
-                currentTab = tab;
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                tabContents.forEach(content => content.classList.remove('active'));
-                $(`#tab-${tab}`).classList.add('active');
-                $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
-                previewSection.classList.add('hidden');
-
-                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
-                if (eventSelectOption && eventSelect.value) {
-                    if (tab === 'specials') {
-                        $('#match-name').value = eventSelectOption.textContent;
-                    } else {
-                        const teamFilterValue = teamFilter.value;
-                        const teamSelectOption = teamSelect.options[teamSelect.selectedIndex];
-                        if (teamFilterValue) {
-                            $('#match-name').value = teamFilterValue;
-                        } else if (teamSelectOption && teamSelect.value !== 'all') {
-                            $('#match-name').value = teamSelectOption.textContent;
-                        } else {
-                            $('#match-name').value = eventSelectOption.textContent;
-                        }
-                    }
-                }
-            });
-        });
-
         on(fetchApiBtn, 'click', fetchApiEvents);
         on(competitionSelect, 'change', e => populateEventSelect(e.target.value));
         on(eventSelect, 'change', e => populateMatchData(e.target.value));
@@ -2064,19 +2142,10 @@
         // --- Tour Logic ---
         const tourHighlight = $('#tour-highlight');
         const tourTooltip = $('#tour-tooltip');
-// ... existing code ... -->
-        on(tourPrev, 'click', () => {
-            if (currentStep > 0) {
-                currentStep--;
-                showStep(currentStep);
-            }
-        });
+        // ... (Your tour logic here if you want to include it)
 
         // --- Team Mapping Function ---
         function openTeamMapping() {
-            // This function is called by the wrench icon button
-            // NOTE: It requires a 'team-mapping.html' file which was not provided in the original repository.
-            // You may need to create this page to allow for editing team mappings.
             window.open('team-mapping.html', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
         }
 
@@ -2091,7 +2160,7 @@
             fetchFbrefData();
             window.injuryManager.initialize();
             window.lineupManager.initialize();
-            makeDraggable(tourTooltip);
+            // makeDraggable(tourTooltip); // Uncomment if tour logic is present
         };
     });
 </script>
