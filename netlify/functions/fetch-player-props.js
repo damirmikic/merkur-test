@@ -1,6 +1,4 @@
-const fetch = require('node-fetch');
-
-// This function is the serverless version of your fetch-odds.js script
+// NOTE: No longer requires 'node-fetch'
 exports.handler = async (event, context) => {
     const API_KEYS = process.env.THE_ODDS_API_KEYS ? process.env.THE_ODDS_API_KEYS.split(',') : [];
     if (API_KEYS.length === 0) {
@@ -15,7 +13,6 @@ exports.handler = async (event, context) => {
     const BASE_URL = 'https://api.the-odds-api.com/v4/sports';
     let keyIndex = 0;
 
-    // Helper to try fetching with rotating keys
     const fetchWithFallback = async (url) => {
         for (let i = 0; i < API_KEYS.length; i++) {
             const apiKey = API_KEYS[keyIndex];
@@ -40,26 +37,23 @@ exports.handler = async (event, context) => {
     try {
         const allEventsWithProps = {};
         
-        // 1. Fetch all upcoming events for each sport
         const eventPromises = SPORTS.map(sport => 
             fetchWithFallback(`${BASE_URL}/${sport}/events?dateFormat=iso`)
         );
         const eventResults = await Promise.allSettled(eventPromises);
 
         const allUpcomingEvents = eventResults
-            .filter(res => res.status === 'fulfilled')
-            .flatMap(res => res.value);
+            .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
+            .flatMap(res => res.value.map(event => ({ ...event, sport_key: sport })));
 
-        // 2. Fetch odds for each event
         const oddsPromises = allUpcomingEvents.map(event => 
             fetchWithFallback(`${BASE_URL}/${event.sport_key}/events/${event.id}/odds?regions=us&markets=${MARKETS}&oddsFormat=decimal`)
-                .then(oddsData => ({ ...event, ...oddsData })) // Combine event info with its odds
+                .then(oddsData => ({ ...event, ...oddsData }))
                 .catch(e => ({...event, error: e.message}))
         );
 
         const fullEventData = await Promise.all(oddsPromises);
 
-        // 3. Group events by sport_key
         fullEventData.forEach(event => {
             if (!event.error) {
                 if (!allEventsWithProps[event.sport_key]) {
@@ -71,6 +65,7 @@ exports.handler = async (event, context) => {
 
         return {
             statusCode: 200,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
             body: JSON.stringify(allEventsWithProps)
         };
     } catch (error) {
@@ -78,3 +73,4 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
     }
 };
+
