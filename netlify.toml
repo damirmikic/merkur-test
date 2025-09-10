@@ -31,3 +31,9 @@
   from = "/api/eurobasket-stats"
   to = "/.netlify/functions/fetch-eurobasket-stats"
   status = 200
+
+# Route for The Odds API player props
+[[redirects]]
+  from = "/api/player-props"
+  to = "/.netlify/functions/fetch-player-props"
+  status = 200
