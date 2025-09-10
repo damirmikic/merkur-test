@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 exports.handler = async (event, context) => {
@@ -6,12 +5,11 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json',
     };
-
+    
     const fetchOptions = {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        },
-        timeout: 8000 // 8-second timeout for each individual fetch
+        }
     };
 
     const baseUrl = "https://www.sportsmole.co.uk";
