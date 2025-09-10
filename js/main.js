@@ -108,7 +108,6 @@ const normalizePlayerPropsData = (data) => {
             const bookmaker = event.bookmakers?.[0];
             const matchOdds = bookmaker?.markets.find(m => m.key === 'h2h');
             
-            // This object will hold all player prop odds, structured for easier access
             const playerProps = {};
             if (bookmaker?.markets) {
                 bookmaker.markets.forEach(market => {
@@ -136,7 +135,7 @@ const normalizePlayerPropsData = (data) => {
                 competitionName: sportKeyToNameMapping[sportKey] || sportKey,
                 competitionKey: sportKey,
                 source: 'TheOddsAPI',
-                playerProps: Object.values(playerProps), // Attach the structured player props
+                playerProps: Object.values(playerProps),
                 markets: {
                     'soccer.match_odds': {
                         submarkets: { 'period=ft': {
@@ -344,7 +343,7 @@ const parsePlayerNameFromOutcome = (outcome) => {
 const createShotLineHTML = (threshold, odd, isCustom = false) => {
     const thresholdInput = isCustom 
         ? `<input type="number" class="shots-threshold w-full" value="${threshold || 1}" min="1" step="1">`
-        : `<span class="shots-threshold font-medium text-slate-700">${threshold}+</span>`; // FIX: Added class
+        : `<span class="shots-threshold font-medium text-slate-700">${threshold}+</span>`;
     
     const calcButton = isCustom 
         ? `<button type="button" class="calc-btn calc-shot-btn" title="Izračunaj kvotu za ovu granicu">&#9924;</button>`
@@ -459,7 +458,7 @@ const populateStandardShotLines = (card) => {
         return;
     };
 
-    container.innerHTML = ''; // Clear existing lines
+    container.innerHTML = '';
     for (let k = 1; k <= 5; k++) {
         const prob_less_than_k = poissonCDF(lambda, k - 1);
         const probability = 1 - prob_less_than_k;
@@ -722,12 +721,12 @@ const calculatePlayerOdds = () => {
         card.querySelectorAll('.shot-line').forEach(line => {
             const oddValue = parseFloat(line.querySelector('.shot-odd-input').value);
             const thresholdEl = line.querySelector('.shots-threshold');
-            if (!thresholdEl) return; // FIX: Guard clause
+            if (!thresholdEl) return; 
 
             let threshold;
             if (thresholdEl.tagName === 'INPUT') {
                 threshold = thresholdEl.value;
-            } else { // It's a SPAN
+            } else {
                 threshold = thresholdEl.textContent.replace('+', '').trim();
             }
 
@@ -1124,6 +1123,43 @@ function makeDraggable(element) {
     }
 }
 
+const findMarketLineAndLambda = (event, market, submarket) => {
+    const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
+    if (!selections) return null;
+
+    let bestLine = null;
+    let minProbDiff = Infinity;
+    const uniqueLines = [...new Set(selections.map(s => parseFloat(s.params.replace('total=', ''))))];
+
+    for (const line of uniqueLines) {
+        const overSelection = selections.find(s => s.outcome === 'over' && parseFloat(s.params.replace('total=', '')) === line);
+        if (overSelection?.probability) {
+            const diff = Math.abs(overSelection.probability - 0.5);
+            if (diff < minProbDiff) {
+                minProbDiff = diff;
+                bestLine = line;
+            }
+        }
+    }
+
+    if (bestLine !== null) {
+        const overSelection = selections.find(s => s.outcome === 'over' && parseFloat(s.params.replace('total=', '')) === bestLine);
+        const probOver = oddToProb(overSelection.price);
+        let lambda = 0;
+        let minError = Infinity;
+        for (let l = 0.1; l < 20; l += 0.05) {
+            const p_over = 1 - poissonCDF(l, bestLine);
+            const error = Math.abs(p_over - probOver);
+            if (error < minError) {
+                minError = error;
+                lambda = l;
+            }
+        }
+        return lambda;
+    }
+    return null;
+};
+
 // --- INITIALIZATION & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
@@ -1218,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const initialData = {
             name: selectedPlayerName,
             teamSide: playerDataFromApi?.teamSide || 'unknown',
-            goalscorerOdd: playerDataFromApi?.markets?.['player_goal_scorer_anytime']?.[0]?.price,
+            goalscorerOdd: playerDataFromApi?.markets?.player_goal_scorer_anytime?.[0]?.price,
             ...(fbrefPlayer || {})
         };
         
@@ -1232,6 +1268,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
     
             for (const [apiKey, internalKey] of Object.entries(oddsAPIToInternalMap)) {
+                // For these markets, we expect one outcome (e.g., 'Yes' for card, or 'Over 0.5' for assist)
                 const oddValue = playerDataFromApi.markets[apiKey]?.[0]?.price;
                 if (oddValue) {
                     const input = playerCard.querySelector(`.player-base-odd[data-odd-type="${internalKey}"]`);
@@ -1239,7 +1276,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Handle shots on target (1+)
             const sotMarket = playerDataFromApi.markets['player_shots_on_target'];
             const sotOver05 = sotMarket?.find(o => o.name === 'Over' && o.point === 0.5);
             if (sotOver05) {
@@ -1247,11 +1283,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (input) input.value = sotOver05.price;
             }
 
-            // Handle total shots (populate multiple lines)
             const shotsMarket = playerDataFromApi.markets['player_shots'];
             const shotsContainer = playerCard.querySelector('.shots-lines-container');
             if (shotsMarket && shotsContainer) {
-                shotsContainer.innerHTML = ''; // Clear default/calculated lines
+                shotsContainer.innerHTML = '';
                 shotsMarket.filter(o => o.name === 'Over').forEach(outcome => {
                     const threshold = outcome.point + 0.5;
                     shotsContainer.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
@@ -1260,7 +1295,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // ... all other event listeners
     on(downloadCsvBtn, 'click', downloadCSV);
     on(playersContainer, 'input', e => { 
         if (e.target.classList.contains('player-name-search')) showAutocomplete(e.target);
@@ -1392,5 +1426,16 @@ const populateMatchData = (eventId) => {
         availableApiPlayers = event.playerProps || [];
     }
     populateApiPlayerSelect(availableApiPlayers);
+    
+    // --- Specijal Tab Population ---
+    if (event.source === 'Cloudbet') {
+        const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
+        const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
+        const cardsLambda = findMarketLineAndLambda(event, 'soccer.totals.cards', 'period=ft');
+
+        $('#special-goals-lambda').value = goalsLambda ? goalsLambda.toFixed(2) : '2.5';
+        $('#special-corners-lambda').value = cornersLambda ? cornersLambda.toFixed(2) : '10.5';
+        $('#special-cards-lambda').value = cardsLambda ? cardsLambda.toFixed(2) : '4.5';
+    }
 };
 
