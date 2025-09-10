@@ -61,7 +61,7 @@ let availableApiPlayers = [];
 let currentTab = 'players';
 let currentStep = 0;
 
-// --- DATA FETCHING & NORMALIZATION ---
+// --- DATA FETCHING & UI POPULATION (Functions defined before being called) ---
 
 const sportKeyToNameMapping = {
     'soccer_epl': 'England - Premier League',
@@ -69,6 +69,25 @@ const sportKeyToNameMapping = {
     'soccer_germany_bundesliga': 'Germany - Bundesliga',
     'soccer_italy_serie_a': 'Italy - Serie A',
     'soccer_spain_la_liga': 'Spain - La Liga',
+};
+
+const populateCompetitionSelect = () => {
+    const competitions = allApiEvents.reduce((acc, event) => {
+        if (!acc[event.competitionKey]) {
+            acc[event.competitionKey] = { key: event.competitionKey, name: event.competitionName };
+        }
+        return acc;
+    }, {});
+
+    competitionSelect.innerHTML = '<option value="">-- Izaberi Takmičenje --</option>';
+    Object.values(competitions)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(comp => {
+            const option = document.createElement('option');
+            option.value = comp.key;
+            option.textContent = comp.name;
+            competitionSelect.appendChild(option);
+        });
 };
 
 const normalizePlayerPropsData = (data) => {
@@ -113,25 +132,6 @@ const normalizePlayerPropsData = (data) => {
     return events;
 };
 
-const populateCompetitionSelect = () => {
-    const competitions = allApiEvents.reduce((acc, event) => {
-        if (!acc[event.competitionKey]) {
-            acc[event.competitionKey] = { key: event.competitionKey, name: event.competitionName };
-        }
-        return acc;
-    }, {});
-
-    competitionSelect.innerHTML = '<option value="">-- Izaberi Takmičenje --</option>';
-    Object.values(competitions)
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(comp => {
-            const option = document.createElement('option');
-            option.value = comp.key;
-            option.textContent = comp.name;
-            competitionSelect.appendChild(option);
-        });
-};
-
 const fetchApiEvents = async () => {
     apiBtnText.textContent = 'Učitavam...';
     fetchApiBtn.disabled = true;
@@ -166,6 +166,16 @@ const fetchApiEvents = async () => {
         apiBtnText.textContent = 'Učitaj Mečeve sa API-ja';
         fetchApiBtn.disabled = false;
     }
+};
+
+const populateTeamFilter = (teams) => {
+    teamFilter.innerHTML = '<option value="">-- Ručni filter --</option>';
+    teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamFilter.appendChild(option);
+    });
 };
 
 const fetchFbrefData = async () => {
@@ -950,16 +960,6 @@ const resetForm = () => {
     apiDataDisplay.querySelector('pre').textContent = '';
 };
 
-const populateTeamFilter = (teams) => {
-    teamFilter.innerHTML = '<option value="">-- Ručni filter --</option>';
-    teams.forEach(team => {
-        const option = document.createElement('option');
-        option.value = team;
-        option.textContent = team;
-        teamFilter.appendChild(option);
-    });
-};
-
 const populateEventSelect = (competitionKey) => {
     eventSelect.innerHTML = '<option value="">-- Izaberi Meč --</option>';
     teamSelect.innerHTML = '';
@@ -1304,7 +1304,8 @@ function showStep(index) {
 
     if (!targetElement || targetElement.offsetParent === null) {
         if (index < tourSteps.length - 1) {
-            showStep(index + 1);
+            currentStep++;
+            showStep(currentStep);
         } else {
             endTour();
         }
@@ -1617,7 +1618,7 @@ on(tourPrev, 'click', () => {
 });
 
 // --- INITIALIZATION ---
-window.onload = () => {
+document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     $('#kickoff-date').value = now.toISOString().split('T')[0];
     $('#kickoff-time').value = get24hTime(now);
@@ -1627,5 +1628,5 @@ window.onload = () => {
     
     fetchFbrefData();
     makeDraggable(tourTooltip);
-};
+});
 
