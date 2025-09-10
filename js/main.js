@@ -341,9 +341,10 @@ const parsePlayerNameFromOutcome = (outcome) => {
 };
 
 const createShotLineHTML = (threshold, odd, isCustom = false) => {
+    const thresholdText = isNaN(parseFloat(threshold)) ? threshold : `${parseFloat(threshold)}+`;
     const thresholdInput = isCustom 
         ? `<input type="number" class="shots-threshold w-full" value="${threshold || 1}" min="1" step="1">`
-        : `<span class="shots-threshold font-medium text-slate-700">${threshold}+</span>`;
+        : `<span class="shots-threshold font-medium text-slate-700">${thresholdText}</span>`;
     
     const calcButton = isCustom 
         ? `<button type="button" class="calc-btn calc-shot-btn" title="Izračunaj kvotu za ovu granicu">&#9924;</button>`
@@ -411,38 +412,28 @@ const addPlayer = (playerData = {}) => {
                         <div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="asistencija" step="0.01"><button type="button" class="calc-btn" data-odd-type="asistencija" data-stat-type="Ast_90" title="Izračunaj">&#9924;</button></div>
                     </div>
                     <div class="input-group">
-                        <label>Kvota: Šutevi u okvir 1+</label>
-                        <div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="sutevi-okvir-1" step="0.01"><button type="button" class="calc-btn" data-odd-type="sutevi-okvir-1" data-stat-type="SoT_90" title="Izračunaj">&#9924;</button></div>
-                    </div>
-                     <div class="input-group">
-                        <label>Kvota: Načinjeni faulovi 1+</label>
-                        <div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="faulovi-1" step="0.01"><button type="button" class="calc-btn" data-odd-type="faulovi-1" data-stat-type="Fls_90" title="Izračunaj">&#9924;</button></div>
-                    </div>
-                    <div class="input-group">
-                        <label>Kvota: Iznuđeni faulovi 1+</label>
-                        <div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="faulovi-iznudjeni-1" step="0.01"><button type="button" class="calc-btn" data-odd-type="faulovi-iznudjeni-1" data-stat-type="Fld_90" title="Izračunaj">&#9924;</button></div>
-                    </div>
-                    <div class="input-group">
                         <label>Kvota: Žuti karton</label>
                         <div class="input-wrapper">
                             <input type="number" class="player-base-odd" data-odd-type="zuti-karton" step="0.01">
                             <button type="button" class="calc-btn" data-odd-type="zuti-karton" data-stat-type="Fls_90" title="Izračunaj">&#9924;</button>
                         </div>
                     </div>
-                     <div class="input-group sm:col-span-2">
+                     <div class="input-group">
                         <label>Očekivani broj pasova (λ)</label>
                         <div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="pasovi-lambda" step="0.01"><button type="button" class="calc-btn" data-odd-type="pasovi-lambda" data-stat-type="Pass_Att_90" title="Izračunaj">&#9924;</button></div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="border-t border-slate-200 pt-6 mt-6">
-             <h4>3. Ukupno Šuteva</h4>
-             <div class="shots-lines-container space-y-2 mt-4"></div>
-             <button type="button" class="add-shot-line-btn mt-3 text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Dodaj Prilagođenu Liniju
-            </button>
+        <div class="grid md:grid-cols-2 gap-x-8 gap-y-6 border-t border-slate-200 pt-6 mt-6">
+            <div>
+                <h4>3. Šutevi u Okvir (SoT)</h4>
+                <div class="sot-lines-container space-y-2 mt-4"></div>
+            </div>
+            <div>
+                <h4>4. Ukupno Šuteva (Shots)</h4>
+                <div class="shots-lines-container space-y-2 mt-4"></div>
+            </div>
         </div>
         `;
      return playerCard;
@@ -589,12 +580,7 @@ const calculatePlayerOdds = () => {
         
         if (finalOddValue === null || finalOddValue <= 1) return;
 
-        const isShotsMarket = m2.includes('suteva');
-        if (isShotsMarket && finalOddValue > 7) return;
-
-        if (finalOddValue > 60) {
-            finalOddValue = 60;
-        }
+        if (finalOddValue > 60) finalOddValue = 60;
 
         allResults.push({ player: playerName, market2: m2, market3: m3, odd: formatOdd(finalOddValue) });
     };
@@ -618,9 +604,7 @@ const calculatePlayerOdds = () => {
             let odd_2plus_final = applyMarginToOdd(odd_2plus_raw, 20);
             createBet(playerName, 'daje', '2+ golova', odd_2plus_final, false);
 
-            const formatted_odd_2plus = formatOdd(odd_2plus_final);
-
-            if (formatted_odd_2plus !== '60.00') {
+            if (formatOdd(odd_2plus_final) !== '60.00') {
                 const prob_3plus = 1 - p_poisson[0] - p_poisson[1] - p_poisson[2];
                 let odd_3plus_raw = probToOdd(prob_3plus);
                 let odd_3plus_final = applyMarginToOdd(odd_3plus_raw, 30);
@@ -632,10 +616,8 @@ const calculatePlayerOdds = () => {
             
             const prob_1h = 1 - poissonPMF(lambda_1h, 0);
             const prob_2h = 1 - poissonPMF(lambda_2h, 0);
-
             const odd_1h = probToOdd(prob_1h);
             const odd_2h = probToOdd(prob_2h);
-            
             const odd_both_halves = (odd_1h && odd_2h) ? odd_1h * odd_2h : null;
 
             createBet(playerName, 'daje gol', 'u 1. poluvremenu', odd_1h);
@@ -663,52 +645,7 @@ const calculatePlayerOdds = () => {
                 }
             }
         }
-        if (baseOdds['sutevi-okvir-1'] > 0) {
-            const lambda = getLambdaFromProb(oddToProb(baseOdds['sutevi-okvir-1']));
-            const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-            createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], false);
-            createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]), true);
-            createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]), true);
-        }
-        if (baseOdds['faulovi-1'] > 0) {
-            const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-1']));
-            const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-            const baseOdd = baseOdds['faulovi-1'];
-            
-            if (baseOdd < 1.3) {
-                createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
-                let tempMargin = 20;
-                const tempFinalOdd = applyMarginToOdd(probToOdd(1 - p[0] - p[1] - p[2]), tempMargin);
-                allResults.push({ player: playerName, market2: 'ukupno nacinjenih', market3: 'faulova 3+', odd: formatOdd(tempFinalOdd) });
 
-            } else {
-                createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdd, false);
-                createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
-            }
-        }
-        if (baseOdds['zuti-karton'] > 0) {
-            createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
-        }
-        if (baseOdds['faulovi-iznudjeni-1'] > 0) {
-            const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-iznudjeni-1']));
-            const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-            const baseOdd = baseOdds['faulovi-iznudjeni-1'];
-            
-            if (baseOdd < 1.3) {
-                createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
-                let tempMargin = 20;
-                const tempFinalOdd = applyMarginToOdd(probToOdd(1 - p[0] - p[1] - p[2]), tempMargin);
-                allResults.push({ player: playerName, market2: 'ukupno iznudjenih', market3: 'faulova 3+', odd: formatOdd(tempFinalOdd) });
-            } else {
-                createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdd, false);
-                createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
-            }
-        }
-        if (baseOdds['pasovi-lambda'] > 0) {
-            const lambda = baseOdds['pasovi-lambda'];
-            const line = Math.ceil(lambda);
-            if (line > 0) createBet(playerName, 'ukupno pasova', `${line}+`, probToOdd(1 - poissonCDF(lambda, line - 1)));
-        }
         if (baseOdds['asistencija'] > 0) {
             createBet(playerName, 'asistencija', '1+', baseOdds['asistencija'], false);
             if (baseOdds['daje-gol'] > 0) {
@@ -718,19 +655,25 @@ const calculatePlayerOdds = () => {
             }
         }
         
-        card.querySelectorAll('.shot-line').forEach(line => {
+        if (baseOdds['zuti-karton'] > 0) {
+            createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
+        }
+
+        // --- NEW: Read from both shots and SoT containers ---
+        card.querySelectorAll('.sot-lines-container .shot-line').forEach(line => {
             const oddValue = parseFloat(line.querySelector('.shot-odd-input').value);
             const thresholdEl = line.querySelector('.shots-threshold');
-            if (!thresholdEl) return; 
-
-            let threshold;
-            if (thresholdEl.tagName === 'INPUT') {
-                threshold = thresholdEl.value;
-            } else {
-                threshold = thresholdEl.textContent.replace('+', '').trim();
+            if (thresholdEl && oddValue > 0) {
+                const threshold = thresholdEl.textContent.replace('+', '').trim();
+                createBet(playerName, 'sutevi u okvir', `${threshold}+`, oddValue, false);
             }
+        });
 
-            if (threshold && oddValue > 0) {
+        card.querySelectorAll('.shots-lines-container .shot-line').forEach(line => {
+            const oddValue = parseFloat(line.querySelector('.shot-odd-input').value);
+            const thresholdEl = line.querySelector('.shots-threshold');
+            if (thresholdEl && oddValue > 0) {
+                const threshold = thresholdEl.textContent.replace('+', '').trim();
                 createBet(playerName, 'ukupno suteva', `${threshold}+`, oddValue, false);
             }
         });
@@ -1262,13 +1205,13 @@ document.addEventListener('DOMContentLoaded', () => {
         playersContainer.appendChild(playerCard);
 
         if (playerDataFromApi && playerDataFromApi.markets) {
+            // Map simple 1:1 markets
             const oddsAPIToInternalMap = {
                 'player_assists': 'asistencija',
                 'player_to_receive_card': 'zuti-karton',
             };
     
             for (const [apiKey, internalKey] of Object.entries(oddsAPIToInternalMap)) {
-                // For these markets, we expect one outcome (e.g., 'Yes' for card, or 'Over 0.5' for assist)
                 const oddValue = playerDataFromApi.markets[apiKey]?.[0]?.price;
                 if (oddValue) {
                     const input = playerCard.querySelector(`.player-base-odd[data-odd-type="${internalKey}"]`);
@@ -1276,21 +1219,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            const sotMarket = playerDataFromApi.markets['player_shots_on_target'];
-            const sotOver05 = sotMarket?.find(o => o.name === 'Over' && o.point === 0.5);
-            if (sotOver05) {
-                const input = playerCard.querySelector('.player-base-odd[data-odd-type="sutevi-okvir-1"]');
-                if (input) input.value = sotOver05.price;
-            }
+            // Map complex markets like shots and SoT
+            const marketToContainerMap = {
+                'player_shots_on_target': '.sot-lines-container',
+                'player_shots': '.shots-lines-container'
+            };
 
-            const shotsMarket = playerDataFromApi.markets['player_shots'];
-            const shotsContainer = playerCard.querySelector('.shots-lines-container');
-            if (shotsMarket && shotsContainer) {
-                shotsContainer.innerHTML = '';
-                shotsMarket.filter(o => o.name === 'Over').forEach(outcome => {
-                    const threshold = outcome.point + 0.5;
-                    shotsContainer.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
-                });
+            for (const [marketKey, containerSelector] of Object.entries(marketToContainerMap)) {
+                const marketData = playerDataFromApi.markets[marketKey];
+                const container = playerCard.querySelector(containerSelector);
+                if (marketData && container) {
+                    container.innerHTML = ''; // Clear default/calculated lines
+                    marketData
+                        .filter(o => o.name === 'Over')
+                        .sort((a,b) => a.point - b.point)
+                        .forEach(outcome => {
+                            // The API uses 'point' like 0.5 for 1+, 1.5 for 2+, etc.
+                            const threshold = outcome.point + 0.5;
+                            container.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
+                        });
+                }
             }
         }
     });
@@ -1427,7 +1375,6 @@ const populateMatchData = (eventId) => {
     }
     populateApiPlayerSelect(availableApiPlayers);
     
-    // --- Specijal Tab Population ---
     if (event.source === 'Cloudbet') {
         const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
         const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
