@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
-    // --- CONFIGURATION ---
+    // --- KONFIGURACIJA ---
     const API_KEYS = process.env.THE_ODDS_API_KEYS ? process.env.THE_ODDS_API_KEYS.split(',') : [];
     if (API_KEYS.length === 0) {
         return { statusCode: 500, body: JSON.stringify({ error: 'THE_ODDS_API_KEYS is not configured in Netlify.' }) };
@@ -16,7 +16,7 @@ exports.handler = async (event, context) => {
     const BASE_URL = 'https://api.the-odds-api.com/v4/sports';
     let keyIndex = 0;
 
-    // --- HELPER FUNCTIONS ---
+    // --- POMOĆNE FUNKCIJE ---
     const fetchWithFallback = async (url, params = {}) => {
         for (let i = 0; i < API_KEYS.length; i++) {
             const apiKey = API_KEYS[keyIndex];
@@ -65,7 +65,7 @@ exports.handler = async (event, context) => {
         };
     };
 
-    // --- MAIN LOGIC ---
+    // --- GLAVNA LOGIKA ---
     try {
         const allSportsData = {};
         const now = new Date();
@@ -73,14 +73,14 @@ exports.handler = async (event, context) => {
 
         const sportPromises = SPORTS.map(async (sport) => {
             try {
-                // STEP 1: Get all scheduled events for the sport
+                // KORAK 1: Dobavi sve zakazane događaje za sport
                 const allEvents = await fetchWithFallback(`${BASE_URL}/${sport}/events`, { dateFormat: 'iso' });
                 if (!allEvents || allEvents.length === 0) {
                     console.log(`No scheduled events found for ${sport}.`);
                     return { sport, data: [] };
                 }
 
-                // Filter events to only include those in the next 7 days
+                // Filtriraj događaje da uključuje samo one u narednih 7 dana
                 const upcomingEvents = allEvents.filter(event => {
                     const eventDate = new Date(event.commence_time);
                     return eventDate > now && eventDate < sevenDaysFromNow;
@@ -91,7 +91,7 @@ exports.handler = async (event, context) => {
                     return { sport, data: [] };
                 }
 
-                // STEP 2: Fetch odds for each upcoming event ID
+                // KORAK 2: Dobavi kvote za svaki predstojeći ID događaja
                 const oddsPromises = upcomingEvents.map(event => 
                     fetchWithFallback(`${BASE_URL}/${sport}/events/${event.id}/odds`, {
                         regions: 'us',
@@ -99,16 +99,16 @@ exports.handler = async (event, context) => {
                         oddsFormat: 'decimal'
                     }).catch(e => {
                         console.error(`Could not fetch odds for event ${event.id}: ${e.message}`);
-                        return null; // Return null on failure to keep Promise.all going
+                        return null; // Vrati null u slučaju neuspeha da bi Promise.all nastavio
                     })
                 );
                 
                 const oddsResults = await Promise.all(oddsPromises);
 
                 const processedEvents = oddsResults
-                    .filter(event => event && event.bookmakers && event.bookmakers.length > 0) // Filter out events where odds fetching failed or returned no bookmakers
+                    .filter(event => event && event.bookmakers && event.bookmakers.length > 0) // Filtriraj događaje gde dobavljanje kvota nije uspelo ili nema kladionica
                     .map(processEventOdds)
-                    .filter(e => e.bookmakers.length > 0); // Filter out events that have no bookmakers after prioritization
+                    .filter(e => e.bookmakers.length > 0); // Filtriraj događaje koji nemaju kladionice nakon prioritizacije
 
                 return { sport, data: processedEvents };
 
