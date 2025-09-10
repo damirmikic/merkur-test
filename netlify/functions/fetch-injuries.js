@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 exports.handler = async (event, context) => {
@@ -14,7 +13,6 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // URLs to scrape injury data from
         const urls = {
             "england-premier-league": "https://www.sportsgambler.com/injuries/football/england-premier-league/",
             "spain-la-liga": "https://www.sportsgambler.com/injuries/football/spain-la-liga/",
@@ -25,7 +23,6 @@ exports.handler = async (event, context) => {
 
         const allInjuries = {};
         
-        // Process each league
         for (const [league, url] of Object.entries(urls)) {
             try {
                 console.log(`Fetching injury data for ${league}...`);
@@ -33,8 +30,7 @@ exports.handler = async (event, context) => {
                 const response = await fetch(url, {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    },
-                    timeout: 10000
+                    }
                 });
 
                 if (!response.ok) {
@@ -45,17 +41,14 @@ exports.handler = async (event, context) => {
                 const $ = cheerio.load(html);
                 const injuries = [];
 
-                // Find team headings
                 $('h3').each((index, teamHeading) => {
                     const teamName = $(teamHeading).text().trim();
                     
-                    // Skip non-team headings
                     const excludeWords = ['injuries', 'suspensions', 'premier', 'liga', 'bundesliga', 'serie', 'ligue', 'la liga', 'serie a', 'news', 'updates'];
                     if (excludeWords.some(word => teamName.toLowerCase().includes(word))) {
                         return;
                     }
 
-                    // Find injury rows for this team
                     let currentElement = $(teamHeading).next();
                     
                     while (currentElement.length && !currentElement.is('h3')) {
@@ -93,7 +86,6 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Add metadata
         const result = {
             ...allInjuries,
             _metadata: {
