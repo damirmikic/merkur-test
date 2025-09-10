@@ -2060,8 +2060,25 @@
 
         on(addCustomBetBtn, 'click', addCustomSpecialBet);
 
-        // --- Tour Logic (unchanged) ---
-        // ... (The full tour logic can be copied from your original file here) ...
+
+        // --- Tour Logic ---
+        const tourHighlight = $('#tour-highlight');
+        const tourTooltip = $('#tour-tooltip');
+// ... existing code ... -->
+        on(tourPrev, 'click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+
+        // --- Team Mapping Function ---
+        function openTeamMapping() {
+            // This function is called by the wrench icon button
+            // NOTE: It requires a 'team-mapping.html' file which was not provided in the original repository.
+            // You may need to create this page to allow for editing team mappings.
+            window.open('team-mapping.html', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+        }
 
         // --- Initial Setup ---
         window.onload = () => {
@@ -2074,9 +2091,10 @@
             fetchFbrefData();
             window.injuryManager.initialize();
             window.lineupManager.initialize();
-            // makeDraggable(tourTooltip); // If you add the tour logic back
+            makeDraggable(tourTooltip);
         };
     });
 </script>
 </body>
 </html>
+
