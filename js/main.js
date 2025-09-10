@@ -236,6 +236,7 @@ const fetchFbrefData = async () => {
     }
 };
 
+// ... (keep math helper functions: factorial, poissonPMF, probToOdd, etc.)
 let factCache = [1];
 const factorial = n => {
     if (n < 0) return NaN;
@@ -262,17 +263,13 @@ const poissonCDF = (lambda, k) => {
 };
 const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
 const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
-
 const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
      const lambdaPlayer = getLambdaFromProb(pScore);
      if (lambdaPlayer === 0) return 0;
-
      const lambdaOther = muTeam - lambdaPlayer;
      if (lambdaOther < 0) return 0;
-
      let winIfScore = 0;
      let probScore = 0;
-
      for (let d = 1; d <= maxGoals; d++) {
        const pD = poissonPMF(lambdaPlayer, d);
        probScore += pD;
@@ -287,6 +284,9 @@ const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
      const pWinGivenScore = winIfScore / probScore;
      return probScore * pWinGivenScore;
 };
+// ... (rest of helper functions: get24hTime, formatOdd, etc.)
+
+// --- UI & FORM LOGIC ---
 
 function updateTeamSelectFromManual() {
     const home = manualHomeTeam.value || 'Domaćin';
@@ -586,7 +586,11 @@ const calculatePlayerOdds = () => {
         if (!playerName) return;
         
         const baseOdds = {};
-        card.querySelectorAll('.player-base-odd').forEach(input => baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0);
+        card.querySelectorAll('.player-base-odd').forEach(input => {
+            if (input) {
+                baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0;
+            }
+        });
         
         if (baseOdds['daje-gol'] > 0) {
             const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
@@ -1097,6 +1101,62 @@ const findMarketLineAndLambda = (event, market, submarket) => {
     }
     return null;
 };
+const calculateTeamLambdas = (event) => {
+    const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
+    const totalGoalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
+    const defaultLambda = totalGoalsLambda ? totalGoalsLambda / 2 : 1.25;
+
+    if (!matchOddsMarket || !totalGoalsLambda) {
+        return { lambdaHome: null, lambdaAway: null };
+    }
+
+    const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
+    const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
+
+    if (!homeOdd || !awayOdd) return { lambdaHome: defaultLambda, lambdaAway: defaultLambda };
+
+    const probHomeRaw = 1 / homeOdd;
+    const probAwayRaw = 1 / awayOdd;
+    const totalProb = probHomeRaw + probAwayRaw;
+    const homeStrength = probHomeRaw / totalProb;
+
+    return {
+        lambdaHome: totalGoalsLambda * homeStrength,
+        lambdaAway: totalGoalsLambda * (1 - homeStrength)
+    };
+};
+
+const calculateTeamCornerLambdas = (event, totalLambdaCorners) => {
+    const handicapMarket = event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections;
+    const defaultSplit = { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
+    if (!handicapMarket || totalLambdaCorners <= 0) {
+        return defaultSplit;
+    }
+
+    let bestHandicap = null;
+    let minOddDiff = Infinity;
+
+    const handicaps = [...new Set(handicapMarket.map(s => s.params.replace('handicap=', '')))];
+    for (const h of handicaps) {
+        const homeSelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'home');
+        const awaySelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'away');
+        if (homeSelection && awaySelection) {
+            const diff = Math.abs(homeSelection.price - awaySelection.price);
+            if (diff < minOddDiff) {
+                minOddDiff = diff;
+                bestHandicap = parseFloat(h);
+            }
+        }
+    }
+    
+    if (bestHandicap !== null) {
+        const expectedDifference = -bestHandicap;
+        const lambdaHome = (totalLambdaCorners + expectedDifference) / 2;
+        const lambdaAway = totalLambdaCorners - lambdaHome;
+        return { lambdaHome: Math.max(0, lambdaHome), lambdaAway: Math.max(0, lambdaAway) };
+    }
+    return defaultSplit;
+};
 
 // --- INITIALIZATION & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1179,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#match-name').value = teamName;
         } else {
             const eventOption = eventSelect.options[eventSelect.selectedIndex];
-            if (eventOption) {
+            if (eventOption && eventOption.value) {
                 $('#match-name').value = eventOption.textContent;
             }
         }
@@ -1237,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         .filter(o => o.name === 'Over')
                         .sort((a,b) => a.point - b.point)
                         .forEach(outcome => {
-                            const threshold = outcome.point + 0.5;
+                            const threshold = outcome.point; 
                             container.insertAdjacentHTML('beforeend', createShotLineHTML(threshold, outcome.price, false));
                         });
                 }
@@ -1255,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     on(playersContainer, 'click', e => {
         const target = e.target.closest('button');
-        if (!target) return;
+        if (!target) return; // FIX for TypeError
         if (target.classList.contains('remove-player-btn')) target.closest('.player-card')?.remove();
         if (target.classList.contains('add-shot-line-btn')) target.previousElementSibling.insertAdjacentHTML('beforeend', createShotLineHTML('', '', true));
         if (target.classList.contains('calc-shot-btn')) calculateOddForLine(target);
@@ -1347,7 +1407,7 @@ const populateMatchData = (eventId) => {
 
     teamSelect.innerHTML = `<option value="all">Svi Igrači</option>`;
     const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
-    if (matchOddsMarket) {
+    if (matchOddsMarket && matchOddsMarket.length > 0) {
         const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
         const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
         teamSelect.innerHTML += `<option value="home" data-odd="${homeOdd || ''}">${event.home.name}</option>`;
@@ -1381,10 +1441,21 @@ const populateMatchData = (eventId) => {
         const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
         const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
         const cardsLambda = findMarketLineAndLambda(event, 'soccer.totals.cards', 'period=ft');
+        
+        const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
+        const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, cornersLambda);
+
+        event.lambdaHome = lambdaHome;
+        event.lambdaAway = lambdaAway;
 
         $('#special-goals-lambda').value = goalsLambda ? goalsLambda.toFixed(2) : '2.5';
         $('#special-corners-lambda').value = cornersLambda ? cornersLambda.toFixed(2) : '10.5';
         $('#special-cards-lambda').value = cardsLambda ? cardsLambda.toFixed(2) : '4.5';
+
+        $('#special-goals-lambda-home').value = lambdaHome ? lambdaHome.toFixed(2) : '';
+        $('#special-goals-lambda-away').value = lambdaAway ? lambdaAway.toFixed(2) : '';
+        $('#special-corners-lambda-home').value = cornerLambdaHome ? cornerLambdaHome.toFixed(2) : '';
+        $('#special-corners-lambda-away').value = cornerLambdaAway ? cornerLambdaAway.toFixed(2) : '';
     }
 };
 
