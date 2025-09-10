@@ -14,18 +14,20 @@ exports.handler = async (event, context) => {
     const MARKETS = 'h2h,player_goal_scorer_anytime,player_shots_on_target,player_shots,player_assists,player_to_receive_card';
     const BOOKMAKERS_PRIORITY = ['fanduel', 'betrivers'];
     const BASE_URL = 'https://api.the-odds-api.com/v4/sports';
-    const DAYS_AHEAD = 7;
     let keyIndex = 0;
 
     // --- HELPER FUNCTIONS ---
-    const fetchWithFallback = async (url) => {
+    const fetchWithFallback = async (url, params = {}) => {
         for (let i = 0; i < API_KEYS.length; i++) {
             const apiKey = API_KEYS[keyIndex];
             keyIndex = (keyIndex + 1) % API_KEYS.length;
-            const fullUrl = `${url}&apiKey=${apiKey}`;
+            
+            const urlWithParams = new URL(url);
+            Object.entries(params).forEach(([key, value]) => urlWithParams.searchParams.set(key, value));
+            urlWithParams.searchParams.set('apiKey', apiKey);
 
             try {
-                const response = await fetch(fullUrl, { timeout: 15000 });
+                const response = await fetch(urlWithParams.toString(), { timeout: 15000 });
                 const remaining = response.headers.get('x-requests-remaining');
                 
                 if (response.ok) {
@@ -44,21 +46,21 @@ exports.handler = async (event, context) => {
         throw new Error('All API keys failed or timed out.');
     };
 
-    const processEvent = (event) => {
+    const processEventOdds = (eventOdds) => {
         let bestBookmaker = null;
         for (const bookie of BOOKMAKERS_PRIORITY) {
-            const found = event.bookmakers.find(b => b.key === bookie);
+            const found = eventOdds.bookmakers.find(b => b.key === bookie);
             if (found) {
                 bestBookmaker = found;
                 break;
             }
         }
-        if (!bestBookmaker && event.bookmakers.length > 0) {
-            bestBookmaker = event.bookmakers[0];
+        if (!bestBookmaker && eventOdds.bookmakers.length > 0) {
+            bestBookmaker = eventOdds.bookmakers[0];
         }
         
         return {
-            ...event,
+            ...eventOdds,
             bookmakers: bestBookmaker ? [bestBookmaker] : []
         };
     };
@@ -66,21 +68,48 @@ exports.handler = async (event, context) => {
     // --- MAIN LOGIC ---
     try {
         const allSportsData = {};
-        const fetchPromises = SPORTS.map(async (sport) => {
+        const now = new Date();
+        const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        const sportPromises = SPORTS.map(async (sport) => {
             try {
-                const eventsList = await fetchWithFallback(`${BASE_URL}/${sport}/events?dateFormat=iso&daysFromNow=${DAYS_AHEAD}`);
-                
-                if (!eventsList || eventsList.length === 0) {
-                    console.log(`No upcoming events in the next ${DAYS_AHEAD} days for ${sport}.`);
+                // STEP 1: Get all scheduled events for the sport
+                const allEvents = await fetchWithFallback(`${BASE_URL}/${sport}/events`, { dateFormat: 'iso' });
+                if (!allEvents || allEvents.length === 0) {
+                    console.log(`No scheduled events found for ${sport}.`);
                     return { sport, data: [] };
                 }
 
-                const eventIds = eventsList.map(e => e.id).join(',');
-                const oddsData = await fetchWithFallback(
-                    `${BASE_URL}/${sport}/events/odds?eventIds=${eventIds}&markets=${MARKETS}&regions=us&oddsFormat=decimal`
+                // Filter events to only include those in the next 7 days
+                const upcomingEvents = allEvents.filter(event => {
+                    const eventDate = new Date(event.commence_time);
+                    return eventDate > now && eventDate < sevenDaysFromNow;
+                });
+
+                if (upcomingEvents.length === 0) {
+                    console.log(`No events within the next 7 days for ${sport}.`);
+                    return { sport, data: [] };
+                }
+
+                // STEP 2: Fetch odds for each upcoming event ID
+                const oddsPromises = upcomingEvents.map(event => 
+                    fetchWithFallback(`${BASE_URL}/${sport}/events/${event.id}/odds`, {
+                        regions: 'us',
+                        markets: MARKETS,
+                        oddsFormat: 'decimal'
+                    }).catch(e => {
+                        console.error(`Could not fetch odds for event ${event.id}: ${e.message}`);
+                        return null; // Return null on failure to keep Promise.all going
+                    })
                 );
                 
-                const processedEvents = oddsData.map(processEvent).filter(e => e.bookmakers.length > 0);
+                const oddsResults = await Promise.all(oddsPromises);
+
+                const processedEvents = oddsResults
+                    .filter(event => event && event.bookmakers && event.bookmakers.length > 0) // Filter out events where odds fetching failed or returned no bookmakers
+                    .map(processEventOdds)
+                    .filter(e => e.bookmakers.length > 0); // Filter out events that have no bookmakers after prioritization
+
                 return { sport, data: processedEvents };
 
             } catch (error) {
@@ -89,7 +118,7 @@ exports.handler = async (event, context) => {
             }
         });
 
-        const results = await Promise.all(fetchPromises);
+        const results = await Promise.all(sportPromises);
 
         results.forEach(result => {
             if (result.data.length > 0) {
