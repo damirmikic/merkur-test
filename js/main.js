@@ -175,17 +175,13 @@ const fetchApiEvents = async () => {
         );
 
         const mergedEvents = [...playerPropsEvents];
-        const big5CloudbetKeys = new Set(Object.values(cloudbetToOddsAPIKeyMap));
+        const playerPropsEventIds = new Set(playerPropsEvents.map(e => e.id));
 
         cloudbetEvents.forEach(event => {
-            // If TheOddsAPI has data, we don't need Cloudbet for the big 5 leagues.
-            // If TheOddsAPI is empty, we need Cloudbet for everything.
-            const correspondingOddsAPIKey = cloudbetToOddsAPIKeyMap[event.competitionKey];
-            if (hasPlayerPropsData && correspondingOddsAPIKey) {
-                // Do nothing, we already have this league from TheOddsAPI
+            const isBig5League = !!cloudbetToOddsAPIKeyMap[event.competitionKey];
+            if (isBig5League && hasPlayerPropsData) {
                 return;
             }
-            // Add the event if it's not a big 5 league, OR if TheOddsAPI is down (fallback)
             mergedEvents.push(event);
         });
 
@@ -195,9 +191,7 @@ const fetchApiEvents = async () => {
              apiStatus.textContent = 'Nije pronađen nijedan meč.';
         } else {
              populateCompetitionSelect();
-             if (hasPlayerPropsData) {
-                 apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva.`;
-             }
+             apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva. ${hasPlayerPropsData ? '' : 'Player props fallback aktivan.'}`;
              competitionSelect.disabled = false;
         }
 
@@ -1180,6 +1174,17 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#team-win-odd').value = selectedOption.dataset.odd || '';
         const teamName = selectedOption.textContent;
         const showInfo = teamName && e.target.value !== 'all';
+
+        // Update Match Name field
+        if (showInfo) {
+            $('#match-name').value = teamName;
+        } else {
+            const eventOption = eventSelect.options[eventSelect.selectedIndex];
+            if (eventOption) {
+                $('#match-name').value = eventOption.textContent;
+            }
+        }
+        
         $('#team-injury-display').style.display = showInfo ? 'block' : 'none';
         $('#team-lineup-display').style.display = showInfo ? 'block' : 'none';
         if(showInfo) {
@@ -1373,7 +1378,6 @@ const populateMatchData = (eventId) => {
     }
     populateApiPlayerSelect(availableApiPlayers);
     
-    // --- Specijal Tab Population ---
     if (event.source === 'Cloudbet') {
         const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
         const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
