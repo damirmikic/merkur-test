@@ -9,10 +9,16 @@ window.lineupManager = new LineupManager();
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const on = (element, event, handler) => {
-    if (element) { // Provera da li element postoji
-        element.addEventListener(event, handler);
+    if (element) {
+        // Ako je NodeList (rezultat $$), prođi kroz svaki element
+        if (element instanceof NodeList) {
+            element.forEach(el => el.addEventListener(event, handler));
+        } else {
+            element.addEventListener(event, handler);
+        }
     }
 };
+
 
 // --- DOM ELEMENT CONSTANTS ---
 const fetchApiBtn = $('#fetch-api-btn');
@@ -295,6 +301,7 @@ const populateSpecialsData = (eventId) => {
     const goalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
     const cornersLambda = findMarketLineAndLambda(event, 'soccer.total_corners', 'period=ft_corners');
     const cardsLambda = findMarketLineAndLambda(event, 'soccer.totals.cards', 'period=ft');
+    const sotLambda = findMarketLineAndLambda(event, 'soccer.shots_on_target', 'period=ft');
     
     const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
     const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, cornersLambda);
@@ -313,10 +320,14 @@ const populateSpecialsData = (eventId) => {
     $('#special-goals-lambda').value = goalsLambda ? goalsLambda.toFixed(2) : '2.5';
     $('#special-corners-lambda').value = cornersLambda ? cornersLambda.toFixed(2) : '10.5';
     $('#special-cards-lambda').value = cardsLambda ? cardsLambda.toFixed(2) : '4.5';
+    $('#special-sot-lambda').value = sotLambda ? sotLambda.toFixed(2) : '8.5';
     $('#special-goals-lambda-home').value = lambdaHome ? lambdaHome.toFixed(2) : '';
     $('#special-goals-lambda-away').value = lambdaAway ? lambdaAway.toFixed(2) : '';
     $('#special-corners-lambda-home').value = cornerLambdaHome ? cornerLambdaHome.toFixed(2) : '';
     $('#special-corners-lambda-away').value = cornerLambdaAway ? cornerLambdaAway.toFixed(2) : '';
+
+    // Show API data in preformatted block
+    apiDataDisplay.querySelector('pre').textContent = JSON.stringify(event, null, 2);
 };
 
 // --- MATH HELPERS ---
@@ -335,7 +346,6 @@ const factorial = n => {
 const poissonPMF = (mu, k) => Math.exp(-mu) * Math.pow(mu, k) / factorial(k);
 const probToOdd = p => (p <= 0 || p >= 1) ? null : 1 / p;
 const oddToProb = o => (o <= 1) ? 1 : 1 / o;
-const getLambdaFromProb = p => (p <= 0 || p >= 1) ? 0 : -Math.log(1 - p);
 const poissonCDF = (lambda, k) => {
     if (k < 0) return 0;
     let sum = 0;
@@ -345,53 +355,33 @@ const poissonCDF = (lambda, k) => {
     return sum;
 };
 const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
-const scoreAndWin = (muTeam, muOpponent, pScore, maxGoals = 10) => {
-     const lambdaPlayer = getLambdaFromProb(pScore);
-     if (lambdaPlayer === 0) return 0;
-     const lambdaOther = muTeam - lambdaPlayer;
-     if (lambdaOther < 0) return 0;
-     let winIfScore = 0;
-     let probScore = 0;
-     for (let d = 1; d <= maxGoals; d++) {
-       const pD = poissonPMF(lambdaPlayer, d);
-       probScore += pD;
-       for (let o = 0; o <= maxGoals; o++) {
-         const pO = poissonPMF(lambdaOther, o);
-         const totalGoals = d + o;
-         const pOppLess = poissonCDF(muOpponent, totalGoals - 1);
-         winIfScore += pD * pO * pOppLess;
-       }
-     }
-     if (probScore === 0) return 0;
-     const pWinGivenScore = winIfScore / probScore;
-     return probScore * pWinGivenScore;
-};
-const get24hTime = (date = new Date()) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-};
-const formatOdd = (o) => {
-    if (o === null || isNaN(o)) return 'N/A';
-    if (o <= 1.01) return '1.01';
-    let roundedOdd = o < 10 ? Math.round(o * 10) / 10 : Math.round(o * 4) / 4;
-    return roundedOdd.toFixed(2);
-};
-const applyMarginToOdd = (odd, margin) => {
-    if (!odd || margin <= 0 || odd <= 1) return odd;
-    const p = 1 / odd;
-    const ap = p * (1 + (margin / 100));
-    return probToOdd(ap);
-}
 
-// --- UI & FORM LOGIC ---
+// --- FORM LOGIC ---
+const resetForm = () => {
+    $('#odds-form').reset();
+    $('#specials-form').reset();
+    playersContainer.innerHTML = '';
+    playerCounter = 0;
+    previewSection.classList.add('hidden');
+    playersTeamSelect.innerHTML = '';
+    playersTeamSelect.disabled = true;
+    apiPlayerAdder.classList.add('hidden');
+    apiPlayerSelect.innerHTML = '';
+    matchDetailsSection.classList.add('hidden');
+    apiDataDisplay.querySelector('pre').textContent = '';
+    apiDataDisplay.classList.add('hidden');
+    if (currentTab === 'players') {
+        addPlayer();
+    }
+};
+
 const addPlayer = (playerData = {}) => {
     playerCounter++;
-    const cardId = `player-card-${playerCounter}`;
     const playerCard = document.createElement('div');
     playerCard.className = 'player-card';
-    playerCard.id = cardId;
-    playerCard.dataset.teamSide = playerData.teamSide || '';
+    playerCard.id = `player-card-${playerCounter}`;
+    playerCard.dataset.teamSide = playerData.teamSide || 'unknown';
+    // Inner HTML for the player card... (skraćeno radi preglednosti)
     playerCard.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <h3 class="text-lg font-bold text-slate-700">Igrač ${playerCounter}</h3>
@@ -407,80 +397,23 @@ const addPlayer = (playerData = {}) => {
                     <input type="text" class="player-name-search w-full" placeholder="Počni da kucaš ime..." value="${playerData.name || ''}">
                     <div class="autocomplete-suggestions hidden"></div>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4">
+                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4">
                     <div class="input-group"><label>Golovi / 90</label><input type="number" class="player-stat" data-stat="Gls_90" step="0.01" value="${playerData.Gls_90 || 0}"></div>
                     <div class="input-group"><label>Asist. / 90</label><input type="number" class="player-stat" data-stat="Ast_90" step="0.01" value="${playerData.Ast_90 || 0}"></div>
                     <div class="input-group"><label>Šutevi u Okvir / 90</label><input type="number" class="player-stat" data-stat="SoT_90" step="0.01" value="${playerData.SoT_90 || 0}"></div>
                     <div class="input-group"><label>Uk. Šuteva / 90</label><input type="number" class="player-stat" data-stat="Sh_90" step="0.01" value="${playerData.Sh_90 || 0}"></div>
-                    <div class="input-group"><label>Pasovi / 90</label><input type="number" class="player-stat" data-stat="Pass_Att_90" step="0.01" value="${playerData.Pass_Att_90 || 0}"></div>
-                    <div class="input-group"><label>Faulovi / 90</label><input type="number" class="player-stat" data-stat="Fls_90" step="0.01" value="${playerData.Fls_90 || 0}"></div>
-                    <div class="input-group"><label>Izn. Faulovi / 90</label><input type="number" class="player-stat" data-stat="Fld_90" step="0.01" value="${playerData.Fld_90 || 0}"></div>
-                </div>
+                 </div>
             </div>
             <div class="space-y-4">
                 <h4>2. Osnovne kvote</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                     <div class="input-group"><label>Kvota: Daje gol</label><div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="daje-gol" step="0.01" value="${playerData.goalscorerOdd || ''}"><button type="button" class="calc-btn" data-odd-type="daje-gol" data-stat-type="Gls_90" title="Izračunaj">&#9924;</button></div></div>
                     <div class="input-group"><label>Kvota: Asistencija</label><div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="asistencija" step="0.01"><button type="button" class="calc-btn" data-odd-type="asistencija" data-stat-type="Ast_90" title="Izračunaj">&#9924;</button></div></div>
-                    <div class="input-group"><label>Kvota: Žuti karton</label><div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="zuti-karton" step="0.01"><button type="button" class="calc-btn" data-odd-type="zuti-karton" data-stat-type="Fls_90" title="Izračunaj">&#9924;</button></div></div>
-                    <div class="input-group"><label>Očekivani broj pasova (λ)</label><div class="input-wrapper"><input type="number" class="player-base-odd" data-odd-type="pasovi-lambda" step="0.01"><button type="button" class="calc-btn" data-odd-type="pasovi-lambda" data-stat-type="Pass_Att_90" title="Izračunaj">&#9924;</button></div></div>
                 </div>
             </div>
         </div>`;
     playersContainer.appendChild(playerCard);
 };
-
-const showAutocomplete = (inputElement) => {
-    // ... (Your existing function)
-};
-
-const calculateOddForLine = (button) => {
-    // ... (Your existing function)
-};
-
-const calculateSingleBaseOdd = (button) => {
-    // ... (Your existing function)
-};
-
-const calculatePlayerOdds = () => {
-    // ... (Your existing function)
-    return [];
-};
-
-const calculateSpecialOdds = () => {
-    // ... (Your existing function)
-    return [];
-};
-
-const updatePreviewTable = (data) => {
-    // ... (Your existing function)
-};
-
-const downloadCSV = () => {
-    // ... (Your existing function)
-};
-
-const resetForm = () => {
-    $('#odds-form').reset();
-    $('#specials-form').reset();
-    playersContainer.innerHTML = '';
-    playerCounter = 0;
-    previewSection.classList.add('hidden');
-    playersTeamSelect.innerHTML = '';
-    playersTeamSelect.disabled = true;
-    apiPlayerAdder.classList.add('hidden');
-    apiPlayerSelect.innerHTML = '';
-    matchDetailsSection.classList.add('hidden');
-    if (currentTab === 'players') addPlayer();
-};
-
-const findMarketLineAndLambda = (event, market, submarket) => {
-    // ... (Your existing function)
-    return null;
-};
-const calculateTeamLambdas = (event) => { return { lambdaHome: null, lambdaAway: null }; };
-const calculateTeamCornerLambdas = (event, totalLambdaCorners) => { return { lambdaHome: null, lambdaAway: null }; };
-
 
 // --- INITIALIZATION & EVENT LISTENERS ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -491,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.injuryManager.initialize();
     window.lineupManager.initialize();
     fetchFbrefData();
+    addPlayer();
 
     on(fetchApiBtn, 'click', fetchAllApiData);
     
@@ -508,7 +442,9 @@ document.addEventListener('DOMContentLoaded', () => {
     on(generateBtn, 'click', (e) => { 
         e.preventDefault(); 
         const generatedData = currentTab === 'players' ? calculatePlayerOdds() : calculateSpecialOdds();
-        updatePreviewTable(generatedData);
+        if (generatedData) {
+            updatePreviewTable(generatedData);
+        }
     });
     
     on(resetBtn, 'click', resetForm);
