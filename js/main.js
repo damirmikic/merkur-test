@@ -10,7 +10,6 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const on = (element, event, handler) => {
     if (element) {
-        // Ako je NodeList (rezultat $$), prođi kroz svaki element
         if (element instanceof NodeList) {
             element.forEach(el => el.addEventListener(event, handler));
         } else {
@@ -18,7 +17,6 @@ const on = (element, event, handler) => {
         }
     }
 };
-
 
 // --- DOM ELEMENT CONSTANTS ---
 const fetchApiBtn = $('#fetch-api-btn');
@@ -326,35 +324,12 @@ const populateSpecialsData = (eventId) => {
     $('#special-corners-lambda-home').value = cornerLambdaHome ? cornerLambdaHome.toFixed(2) : '';
     $('#special-corners-lambda-away').value = cornerLambdaAway ? cornerLambdaAway.toFixed(2) : '';
 
-    // Show API data in preformatted block
     apiDataDisplay.querySelector('pre').textContent = JSON.stringify(event, null, 2);
 };
 
 // --- MATH HELPERS ---
-let factCache = [1];
-const factorial = n => {
-    if (n < 0) return NaN;
-    if (n > 170) return Infinity;
-    if (factCache[n] !== undefined) return factCache[n];
-    let val = factCache[factCache.length - 1];
-    for (let i = factCache.length; i <= n; i++) {
-        val *= i;
-        factCache[i] = val;
-    }
-    return val;
-};
 const poissonPMF = (mu, k) => Math.exp(-mu) * Math.pow(mu, k) / factorial(k);
-const probToOdd = p => (p <= 0 || p >= 1) ? null : 1 / p;
 const oddToProb = o => (o <= 1) ? 1 : 1 / o;
-const poissonCDF = (lambda, k) => {
-    if (k < 0) return 0;
-    let sum = 0;
-    for (let i = 0; i <= k; i++) {
-        sum += poissonPMF(lambda, i);
-    }
-    return sum;
-};
-const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
 
 // --- FORM LOGIC ---
 const resetForm = () => {
@@ -381,7 +356,6 @@ const addPlayer = (playerData = {}) => {
     playerCard.className = 'player-card';
     playerCard.id = `player-card-${playerCounter}`;
     playerCard.dataset.teamSide = playerData.teamSide || 'unknown';
-    // Inner HTML for the player card... (skraćeno radi preglednosti)
     playerCard.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <h3 class="text-lg font-bold text-slate-700">Igrač ${playerCounter}</h3>
@@ -415,7 +389,7 @@ const addPlayer = (playerData = {}) => {
     playersContainer.appendChild(playerCard);
 };
 
-// --- INITIALIZATION & EVENT LISTENERS ---
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     $('#kickoff-date').value = now.toISOString().split('T')[0];
@@ -429,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     on(fetchApiBtn, 'click', fetchAllApiData);
     
     tabButtons.forEach(button => {
-        on(button, 'click', (e) => {
+        on(button, 'click', () => {
             currentTab = button.dataset.tab;
             tabButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
