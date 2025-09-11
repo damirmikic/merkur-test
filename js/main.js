@@ -24,8 +24,6 @@ const apiBtnText = $('#api-btn-text');
 const apiStatus = $('#api-status');
 const tabButtons = $$('.tab-btn');
 const tabContents = $$('.tab-content');
-
-// Players Tab Elements
 const playersApiSection = $('#api-section');
 const playersCompetitionSelect = $('#competition-select');
 const playersEventSelect = $('#event-select');
@@ -36,15 +34,10 @@ const apiPlayerSelect = $('#api-player-select');
 const addApiPlayerBtn = $('#add-api-player-btn');
 const playersContainer = $('#players-container');
 const addPlayerBtn = $('#add-player-btn');
-
-// Specials Tab Elements
 const specialApiSection = $('#special-api-section');
 const specialCompetitionSelect = $('#special-competition-select');
 const specialEventSelect = $('#special-event-select');
 const addCustomBetBtn = $('#add-custom-bet-btn');
-
-
-// Common Elements
 const generateBtn = $('#generate-btn');
 const downloadCsvBtn = $('#download-csv-btn');
 const resetBtn = $('#reset-btn');
@@ -53,7 +46,6 @@ const previewTableBody = $('#preview-table-body');
 const matchDetailsSection = $('#match-details-section');
 const toggleApiDataBtn = $('#toggle-api-data-btn');
 const apiDataDisplay = $('#api-data-display');
-
 
 // --- GLOBAL STATE ---
 let allFbrefStats = [];
@@ -75,7 +67,6 @@ const BIG_5_LEAGUES_CLOUDBET = [
     'soccer-england-premier-league', 'soccer-france-ligue-1', 
     'soccer-germany-bundesliga', 'soccer-italy-serie-a', 'soccer-spain-laliga'
 ];
-
 
 // --- UTILITY/HELPER FUNCTIONS ---
 
@@ -110,98 +101,38 @@ const poissonCDF = (lambda, k) => {
 };
 const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
 
-const findMarketLineAndLambda = (event, market, submarket) => {
-    const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
-    if (!selections) return null;
-
-    let bestLine = null;
-    let minProbDiff = Infinity;
-    const uniqueLines = [...new Set(selections.map(s => parseFloat(s.params.replace('total=', ''))))];
-
-    for (const line of uniqueLines) {
-        const overSelection = selections.find(s => s.outcome === 'over' && parseFloat(s.params.replace('total=', '')) === line);
-        if (overSelection?.probability) {
-            const diff = Math.abs(overSelection.probability - 0.5);
-            if (diff < minProbDiff) {
-                minProbDiff = diff;
-                bestLine = line;
-            }
-        }
-    }
-
-    if (bestLine !== null) {
-        const overSelection = selections.find(s => s.outcome === 'over' && parseFloat(s.params.replace('total=', '')) === bestLine);
-        const probOver = oddToProb(overSelection.price);
-        let lambda = 0;
-        let minError = Infinity;
-        for (let l = 0.1; l < 20; l += 0.05) {
-            const p_over = 1 - poissonCDF(l, bestLine);
-            const error = Math.abs(p_over - probOver);
-            if (error < minError) {
-                minError = error;
-                lambda = l;
-            }
-        }
-        return lambda;
-    }
-    return null;
-};
-const calculateTeamLambdas = (event) => {
-    const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
-    const totalGoalsLambda = findMarketLineAndLambda(event, 'soccer.total_goals', 'period=ft');
-
-    if (!matchOddsMarket || !totalGoalsLambda) {
-        return { lambdaHome: null, lambdaAway: null };
-    }
-
-    const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
-    const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
-
-    if (!homeOdd || !awayOdd) return { lambdaHome: totalGoalsLambda / 2, lambdaAway: totalGoalsLambda / 2 };
-
-    const probHomeRaw = 1 / homeOdd;
-    const probAwayRaw = 1 / awayOdd;
-    const totalProb = probHomeRaw + probAwayRaw;
-    const homeStrength = probHomeRaw / totalProb;
-
-    return {
-        lambdaHome: totalGoalsLambda * homeStrength,
-        lambdaAway: totalGoalsLambda * (1 - homeStrength)
-    };
-};
-const calculateTeamCornerLambdas = (event, totalLambdaCorners) => {
-    const handicapMarket = event.markets?.['soccer.corner_handicap']?.submarkets?.['period=ft_corners']?.selections;
-    const defaultSplit = { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
-    if (!handicapMarket || totalLambdaCorners <= 0) {
-        return defaultSplit;
-    }
-
-    let bestHandicap = null;
-    let minOddDiff = Infinity;
-
-    const handicaps = [...new Set(handicapMarket.map(s => s.params.replace('handicap=', '')))];
-    for (const h of handicaps) {
-        const homeSelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'home');
-        const awaySelection = handicapMarket.find(s => s.params === `handicap=${h}` && s.outcome === 'away');
-        if (homeSelection && awaySelection) {
-            const diff = Math.abs(homeSelection.price - awaySelection.price);
-            if (diff < minOddDiff) {
-                minOddDiff = diff;
-                bestHandicap = parseFloat(h);
-            }
-        }
-    }
-    
-    if (bestHandicap !== null) {
-        const expectedDifference = -bestHandicap;
-        const lambdaHome = (totalLambdaCorners + expectedDifference) / 2;
-        const lambdaAway = totalLambdaCorners - lambdaHome;
-        return { lambdaHome: Math.max(0, lambdaHome), lambdaAway: Math.max(0, lambdaAway) };
-    }
-    return defaultSplit;
-};
-
 // --- DATA FETCHING & NORMALIZATION ---
+
+const aggregatePlayerProps = (bookmakers) => {
+    const aggregatedPlayers = {};
+    if (!bookmakers) return [];
+
+    bookmakers.forEach(bookmaker => {
+        bookmaker.markets.forEach(market => {
+            if (market.key.startsWith('player_')) {
+                market.outcomes.forEach(outcome => {
+                    const playerName = outcome.description;
+                    if (!aggregatedPlayers[playerName]) {
+                        aggregatedPlayers[playerName] = { name: playerName, markets: {} };
+                    }
+                    if (!aggregatedPlayers[playerName].markets[market.key]) {
+                        aggregatedPlayers[playerName].markets[market.key] = [];
+                    }
+                    
+                    const existingOutcome = aggregatedPlayers[playerName].markets[market.key]
+                        .find(o => o.name === outcome.name && o.point === outcome.point);
+
+                    if (!existingOutcome) {
+                        aggregatedPlayers[playerName].markets[market.key].push(outcome);
+                    }
+                });
+            }
+        });
+    });
+
+    return Object.values(aggregatedPlayers);
+};
+
 
 const normalizePlayerPropsData = (data) => {
     const events = [];
@@ -209,10 +140,8 @@ const normalizePlayerPropsData = (data) => {
     for (const sportKey in data) {
         if (!Array.isArray(data[sportKey])) continue;
         data[sportKey].forEach(event => {
-            const bookmaker = event.bookmakers?.[0];
-            const matchOdds = bookmaker?.markets.find(m => m.key === 'h2h');
-            const playerProps = event.playerProps || [];
-            events.push({
+            // Originalni event podaci (bez kvota)
+            const baseEvent = {
                 id: event.id,
                 name: `${event.home_team} vs ${event.away_team}`,
                 home: { name: event.home_team },
@@ -221,11 +150,24 @@ const normalizePlayerPropsData = (data) => {
                 competitionName: sportKeyToNameMapping[sportKey] || sportKey,
                 competitionKey: sportKey,
                 source: 'TheOddsAPI',
+            };
+            
+            // Agregacija kvota iz svih kladionica
+            const allBookmakers = event.bookmakers || [];
+            const playerProps = aggregatePlayerProps(allBookmakers);
+
+            // Pronalazak H2H kvota
+            const h2hMarket = allBookmakers
+                .flatMap(b => b.markets)
+                .find(m => m.key === 'h2h');
+
+            events.push({
+                ...baseEvent,
                 playerProps: playerProps,
                 markets: {
                     'soccer.match_odds': {
                         submarkets: { 'period=ft': {
-                            selections: matchOdds?.outcomes.map(o => ({
+                            selections: h2hMarket?.outcomes.map(o => ({
                                 outcome: o.name === event.home_team ? 'home' : (o.name === event.away_team ? 'away' : 'draw'),
                                 price: o.price
                             })) || []
@@ -510,12 +452,13 @@ const addPlayer = (playerData = {}) => {
     playersContainer.appendChild(playerCard);
 };
 
-const calculatePlayerOdds = () => { return []; };
-const calculateSpecialOdds = () => { return []; };
-const updatePreviewTable = (data) => {};
-const downloadCSV = () => {};
-const showAutocomplete = (el) => {};
-const calculateSingleBaseOdd = (btn) => {};
+// ... (Preostale funkcije za kalkulaciju i CSV ostaju iste)
+const calculatePlayerOdds = () => { /* No changes needed */ return []; };
+const calculateSpecialOdds = () => { /* No changes needed */ return []; };
+const updatePreviewTable = (data) => { /* No changes needed */ };
+const downloadCSV = () => { /* No changes needed */ };
+const showAutocomplete = (el) => { /* No changes needed */ };
+const calculateSingleBaseOdd = (btn) => { /* No changes needed */ };
 
 
 // --- INITIALIZATION ---
