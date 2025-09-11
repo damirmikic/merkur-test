@@ -78,6 +78,13 @@ const cloudbetToOddsAPIKeyMap = {
     'soccer-italy-serie-a': 'soccer_italy_serie_a',
     'soccer-spain-laliga': 'soccer_spain_la_liga'
 };
+const oddsAPIToCloudbetKeyMap = {
+    'soccer_epl': 'soccer-england-premier-league',
+    'soccer_france_ligue_one': 'soccer-france-ligue-1',
+    'soccer_germany_bundesliga': 'soccer-germany-bundesliga',
+    'soccer_italy_serie_a': 'soccer-italy-serie-a',
+    'soccer_spain_la_liga': 'soccer-spain-laliga'
+};
 
 const populateCompetitionSelect = () => {
     const competitions = allApiEvents.reduce((acc, event) => {
@@ -156,7 +163,7 @@ const fetchApiEvents = async () => {
     apiBtnText.textContent = 'Učitavam...';
     fetchApiBtn.disabled = true;
     apiStatus.textContent = 'Preuzimanje podataka sa oba API-ja...';
-    
+
     const cloudbetPromise = fetch('/api/events').then(res => res.ok ? res.json() : { competitions: [] });
     const playerPropsPromise = fetch('/api/player-props').then(res => res.ok ? res.json() : {});
 
@@ -164,24 +171,61 @@ const fetchApiEvents = async () => {
         const [cloudbetData, playerPropsData] = await Promise.all([cloudbetPromise, playerPropsPromise]);
         
         const playerPropsEvents = normalizePlayerPropsData(playerPropsData);
-        const hasPlayerPropsData = playerPropsEvents.length > 0;
-
-        if (!hasPlayerPropsData) {
-            apiStatus.textContent = 'Nema dostupnih kvota za igrače (verovatno je pauza za reprezentacije). Koristim alternativni API za svih 5 liga.';
-        }
-
         const cloudbetEvents = (cloudbetData.competitions || []).flatMap(comp => 
             comp.events.map(event => ({...event, competitionName: comp.name, competitionKey: comp.key, source: 'Cloudbet' }))
         );
 
-        const mergedEvents = [...playerPropsEvents];
+        const mergedEvents = [];
+        const matchedCloudbetIds = new Set();
 
-        cloudbetEvents.forEach(event => {
-            const isBig5League = !!cloudbetToOddsAPIKeyMap[event.competitionKey];
-            if (isBig5League && hasPlayerPropsData) {
+        playerPropsEvents.forEach(oddsEvent => {
+            const cloudbetCompKey = oddsAPIToCloudbetKeyMap[oddsEvent.competitionKey];
+            if (!cloudbetCompKey) {
+                mergedEvents.push(oddsEvent); // Ako nema mapiranja, dodaj kao zaseban događaj
                 return;
             }
-            mergedEvents.push(event);
+
+            // Normalizuj imena timova radi boljeg poređenja
+            const normalize = (name) => name.toLowerCase().replace(/ fc| cf| ac| sc/g, '').trim();
+            const oddsHomeNorm = normalize(oddsEvent.home.name);
+            const oddsAwayNorm = normalize(oddsEvent.away.name);
+
+            const matchingCloudbetEvent = cloudbetEvents.find(cbEvent => {
+                if (cbEvent.competitionKey !== cloudbetCompKey) return false;
+                const cbHomeNorm = normalize(cbEvent.home.name);
+                const cbAwayNorm = normalize(cbEvent.away.name);
+                return (oddsHomeNorm === cbHomeNorm && oddsAwayNorm === cbAwayNorm) ||
+                       (oddsHomeNorm === cbAwayNorm && oddsAwayNorm === cbHomeNorm);
+            });
+
+            if (matchingCloudbetEvent) {
+                // Spajamo markete iz oba izvora
+                const combinedMarkets = { ...matchingCloudbetEvent.markets, ...oddsEvent.markets };
+                
+                // Kreiramo novi, objedinjeni događaj
+                const mergedEvent = {
+                    ...oddsEvent, // Osnova je OddsAPI događaj
+                    ...matchingCloudbetEvent, // Prepisujemo sa detaljnijim Cloudbet podacima
+                    id: oddsEvent.id, // Osiguravamo da ID sa OddsAPI ostane primaran
+                    name: oddsEvent.name, // Koristimo ime sa OddsAPI
+                    source: 'Merged TheOddsAPI/Cloudbet',
+                    markets: combinedMarkets,
+                    playerProps: oddsEvent.playerProps // Čuvamo već obrađene player props
+                };
+
+                mergedEvents.push(mergedEvent);
+                matchedCloudbetIds.add(matchingCloudbetEvent.id);
+            } else {
+                // Ako nema para, dodajemo samo događaj sa OddsAPI
+                mergedEvents.push(oddsEvent);
+            }
+        });
+
+        // Dodajemo sve Cloudbet događaje koji nisu pronašli svoj par
+        cloudbetEvents.forEach(cbEvent => {
+            if (!matchedCloudbetIds.has(cbEvent.id)) {
+                mergedEvents.push(cbEvent);
+            }
         });
 
         allApiEvents = mergedEvents;
@@ -190,7 +234,7 @@ const fetchApiEvents = async () => {
              apiStatus.textContent = 'Nije pronađen nijedan meč.';
         } else {
              populateCompetitionSelect();
-             apiStatus.textContent = `Uspešno učitano ${allApiEvents.length} mečeva. ${hasPlayerPropsData ? '' : 'Player props fallback aktivan.'}`;
+             apiStatus.textContent = `Uspešno učitano i spojeno ${allApiEvents.length} mečeva.`;
              competitionSelect.disabled = false;
         }
 
