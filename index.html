@@ -45,7 +45,6 @@
                     <p id="api-status" class="text-sm text-slate-500 mt-2 h-5"></p>
                 </div>
 
-
                 <div id="tab-players" class="tab-content active">
                     <section id="api-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                         <h3 class="font-bold text-lg text-slate-800 mb-4">Preuzimanje Podataka za Igrače</h3>
@@ -60,8 +59,17 @@
                             </div>
                         </div>
                     </section>
+                    
+                    <section id="match-details-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 hidden">
+                        <div class="input-group md:col-span-1"><label for="match-name">Naziv Utakmice</label><input type="text" id="match-name"></div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="input-group"><label for="kickoff-date">Datum početka</label><input type="date" id="kickoff-date"></div>
+                            <div class="input-group"><label for="kickoff-time">Vreme početka</label><input type="time" id="kickoff-time"></div>
+                        </div>
+                    </section>
+                    
                     <form id="odds-form">
-                         <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
+                        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
                              <div class="input-group">
                                 <label for="team-select">Tim</label>
                                 <select id="team-select" disabled></select>
@@ -96,7 +104,7 @@
 
                 <div id="tab-specials" class="tab-content">
                     <form id="specials-form">
-                         <section id="special-api-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
+                         <section id="special-api-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg hidden">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">Izbor Meča za Specijal (Cloudbet)</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                                 <div class="input-group">
@@ -112,50 +120,17 @@
                          <section id="special-params-section" class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">Parametri za Specijal</h3>
                              <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                <div class="input-group">
-                                    <label for="special-goals-lambda">Oč. Golova (λ)</label>
-                                    <input type="number" id="special-goals-lambda" step="0.1" value="2.5" title="Očekivani ukupan broj golova na meču">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-goals-lambda-home">Oč. Golova Domaćin</label>
-                                    <input type="number" id="special-goals-lambda-home" step="0.1" value="1.4" readonly title="Očekivani broj golova za domaćina">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-goals-lambda-away">Oč. Golova Gost</label>
-                                    <input type="number" id="special-goals-lambda-away" step="0.1" value="1.1" readonly title="Očekivani broj golova za gosta">
-                                </div>
-                                 <div class="input-group">
-                                    <label for="special-corners-lambda">Oč. Kornera (λ)</label>
-                                    <input type="number" id="special-corners-lambda" step="0.1" value="10.5" title="Očekivani ukupan broj kornera na meču">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-cards-lambda">Oč. Kartona (λ)</label>
-                                    <input type="number" id="special-cards-lambda" step="0.1" value="4.5" title="Očekivani ukupan broj kartona na meču">
-                                </div>
-                                 <div class="input-group">
-                                    <label for="special-sot-lambda">Oč. Šuteva u Okvir (λ)</label>
-                                    <input type="number" id="special-sot-lambda" step="0.1" value="8.5" title="Očekivani ukupan broj šuteva u okvir gola na meču">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-corners-lambda-home">Oč. Kornera Domaćin</label>
-                                    <input type="number" id="special-corners-lambda-home" step="0.1" value="5.5" readonly title="Očekivani broj kornera za domaćina">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-corners-lambda-away">Oč. Kornera Gost</label>
-                                    <input type="number" id="special-corners-lambda-away" step="0.1" value="5.0" readonly title="Očekivani broj kornera za gosta">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-gg-prob">GG Verovatnoća (%)</label>
-                                    <input type="number" id="special-gg-prob" step="0.1" value="55.0" title="Verovatnoća da oba tima daju gol">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-penalty-odd">Kvota za Penal</label>
-                                    <input type="number" id="special-penalty-odd" step="0.01" value="3.0" title="Kvota da će biti dosuđen penal na meču">
-                                </div>
-                                <div class="input-group">
-                                    <label for="special-red-card-odd">Kvota za Crveni Karton</label>
-                                    <input type="number" id="special-red-card-odd" step="0.01" value="4.0" title="Kvota da će biti dodeljen crveni karton na meču">
-                                </div>
+                                <div class="input-group"><label for="special-goals-lambda">Oč. Golova (λ)</label><input type="number" id="special-goals-lambda" step="0.1" value="2.5"></div>
+                                <div class="input-group"><label for="special-goals-lambda-home">Oč. Golova Domaćin</label><input type="number" id="special-goals-lambda-home" step="0.1" readonly></div>
+                                <div class="input-group"><label for="special-goals-lambda-away">Oč. Golova Gost</label><input type="number" id="special-goals-lambda-away" step="0.1" readonly></div>
+                                 <div class="input-group"><label for="special-corners-lambda">Oč. Kornera (λ)</label><input type="number" id="special-corners-lambda" step="0.1" value="10.5"></div>
+                                <div class="input-group"><label for="special-cards-lambda">Oč. Kartona (λ)</label><input type="number" id="special-cards-lambda" step="0.1" value="4.5"></div>
+                                 <div class="input-group"><label for="special-sot-lambda">Oč. Šuteva u Okvir (λ)</label><input type="number" id="special-sot-lambda" step="0.1" value="8.5"></div>
+                                <div class="input-group"><label for="special-corners-lambda-home">Oč. Kornera Domaćin</label><input type="number" id="special-corners-lambda-home" step="0.1" readonly></div>
+                                <div class="input-group"><label for="special-corners-lambda-away">Oč. Kornera Gost</label><input type="number" id="special-corners-lambda-away" step="0.1" readonly></div>
+                                <div class="input-group"><label for="special-gg-prob">GG Verovatnoća (%)</label><input type="number" id="special-gg-prob" step="0.1" value="55.0"></div>
+                                <div class="input-group"><label for="special-penalty-odd">Kvota za Penal</label><input type="number" id="special-penalty-odd" step="0.01" value="3.0"></div>
+                                <div class="input-group"><label for="special-red-card-odd">Kvota za Crveni Karton</label><input type="number" id="special-red-card-odd" step="0.01" value="4.0"></div>
                              </div>
                         </section>
                          <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
@@ -192,9 +167,6 @@
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6 text-center">Pregled Generisanih Kvota</h2>
                      <div class="flex items-center justify-between mb-4">
                         <p id="preview-match-name" class="text-sm font-medium text-slate-600"></p>
-                        <div id="csv-datetime-preview" class="text-sm font-medium text-red-600 border border-red-400 rounded-md px-3 py-1">
-                            Datum i Vreme za CSV: <span id="csv-datetime-value" class="font-bold"></span>
-                        </div>
                         <div class="flex items-center gap-2">
                              <input type="text" id="csv-match-name" placeholder="MATCH_NAME" class="input-group input !w-auto text-sm">
                              <input type="text" id="csv-league-name" placeholder="LEAGUE_NAME" class="input-group input !w-auto text-sm">
