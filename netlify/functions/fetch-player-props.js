@@ -68,47 +68,26 @@ exports.handler = async (event, context) => {
     // --- GLAVNA LOGIKA ---
     try {
         const allSportsData = {};
-        const now = new Date();
-        const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
         const sportPromises = SPORTS.map(async (sport) => {
             try {
-                // KORAK 1: Dobavi sve zakazane događaje za sport
-                const allEvents = await fetchWithFallback(`${BASE_URL}/${sport}/events`, { dateFormat: 'iso' });
-                if (!allEvents || allEvents.length === 0) {
-                    console.log(`No scheduled events found for ${sport}.`);
-                    return { sport, data: [] };
-                }
-
-                // Filtriraj događaje da uključuje samo one u narednih 7 dana
-                const upcomingEvents = allEvents.filter(event => {
-                    const eventDate = new Date(event.commence_time);
-                    return eventDate > now && eventDate < sevenDaysFromNow;
+                // Pozivamo API bez vremenskog opsega
+                const eventsWithOdds = await fetchWithFallback(`${BASE_URL}/${sport}/odds`, {
+                    regions: 'us',
+                    markets: MARKETS,
+                    oddsFormat: 'decimal',
+                    dateFormat: 'iso'
                 });
 
-                if (upcomingEvents.length === 0) {
-                    console.log(`No events within the next 7 days for ${sport}.`);
+                if (!eventsWithOdds || eventsWithOdds.length === 0) {
+                    console.log(`No events with odds found for ${sport}.`);
                     return { sport, data: [] };
                 }
 
-                // KORAK 2: Dobavi kvote za svaki predstojeći ID događaja
-                const oddsPromises = upcomingEvents.map(event => 
-                    fetchWithFallback(`${BASE_URL}/${sport}/events/${event.id}/odds`, {
-                        regions: 'us',
-                        markets: MARKETS,
-                        oddsFormat: 'decimal'
-                    }).catch(e => {
-                        console.error(`Could not fetch odds for event ${event.id}: ${e.message}`);
-                        return null; // Vrati null u slučaju neuspeha da bi Promise.all nastavio
-                    })
-                );
-                
-                const oddsResults = await Promise.all(oddsPromises);
-
-                const processedEvents = oddsResults
-                    .filter(event => event && event.bookmakers && event.bookmakers.length > 0) // Filtriraj događaje gde dobavljanje kvota nije uspelo ili nema kladionica
+                const processedEvents = eventsWithOdds
+                    .filter(event => event.bookmakers && event.bookmakers.length > 0)
                     .map(processEventOdds)
-                    .filter(e => e.bookmakers.length > 0); // Filtriraj događaje koji nemaju kladionice nakon prioritizacije
+                    .filter(e => e.bookmakers.length > 0);
 
                 return { sport, data: processedEvents };
 
@@ -140,4 +119,3 @@ exports.handler = async (event, context) => {
         };
     }
 };
-
